@@ -1,10 +1,5 @@
 import { Stack, Redirect } from "expo-router";
 
-export default function RootLayout() {
-  return (
-    <>
-      <Stack />
-      <Redirect href="/dashboard" />
-    </>
-  );
+export default function TabsLayout() {
+  return <Stack screenOptions={{ headerShown: false }} />;
 }

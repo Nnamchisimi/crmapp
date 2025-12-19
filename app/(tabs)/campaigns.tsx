@@ -65,7 +65,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const DRAWER_WIDTH = screenWidth * 0.7; 
 
 // IMPORTANT: Replace 'http://localhost:3007' with your actual local IP address 
-const BASE_URL = 'http://localhost:3007'; 
+const BASE_URL = "http://192.168.55.58:3007"; 
 
 // Custom "Chip" equivalent for RN
 const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ label, color, style }) => (

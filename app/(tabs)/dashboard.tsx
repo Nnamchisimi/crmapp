@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {router} from "expo-router"
 import {
   View,
   Text,
@@ -45,21 +46,8 @@ interface Campaign {
   bookedByUser: boolean; // Added locally after fetching
 }
 
-// Define the shape of your navigation parameters (for React Navigation)
-type RootStackParamList = {
-  // Add your actual route names here
-  signin: undefined;
-  dashboard: undefined;
-  campaigns: undefined;
-  addVehicle: undefined;
-  vehicles: { id: string };
-  newsletter: undefined;
-  notifications: undefined;
-  booking: undefined;
-};
 
-// Define the component's expected props
-type DashboardProps = NativeStackScreenProps<RootStackParamList, 'dashboard'>;
+
 
 
 // --- CONSTANTS & PLACEHOLDERS ---
@@ -74,7 +62,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const DRAWER_WIDTH = screenWidth * 0.7; 
 
 // IMPORTANT: Replace 'http://localhost:3007' with your actual local IP address (e.g., 'http://192.168.1.5:3007')
-const BASE_URL = 'http://localhost:3007'; 
+const BASE_URL = "http://192.168.55.58:3007"; // or tunnel URL
 
 // Placeholder component for BrandLogo
 const BrandLogo: React.FC<{ brand: string, size: 'lg' | 'sm', showName: boolean }> = ({ brand, size }) => (
@@ -93,25 +81,28 @@ const CustomChip: React.FC<{ label: string, color: string }> = ({ label, color }
 
 
 // --- DASHBOARD COMPONENT ---
-const Dashboard: React.FC<DashboardProps> = ({ navigation }) => {
+const Dashboard: React.FC = () => {
   
   // Helper to convert web paths to RN navigation calls
   const navigate = useCallback((path: string) => {
     // This logic handles your original web paths and maps them to React Navigation calls
-    if (path === '/signin') return navigation.replace('signin');
-    if (path === '/addVehicle') return navigation.navigate('addVehicle');
-    if (path === '/campaigns') return navigation.navigate('campaigns');
-    if (path === '/notifications') return navigation.navigate('notifications');
+    if (path === '/signin') return router.replace('/signin');
+    if (path === '/addVehicle') return router.push('/addVehicle');
+    if (path === '/campaigns') return router.push('/campaigns');
+    if (path === '/notifications') return router.push('/notifications');
     if (path.startsWith('/vehicles/')) {
         const id = path.split('/')[2];
-        return navigation.navigate('vehicles', { id });
+        return router.push({
+          pathname:"/vehicles/[id]",
+          params:{id},
+        });
     }
     // Handle other exact matches
-    if (path === '/dashboard') return navigation.navigate('dashboard');
-    if (path === '/') return navigation.navigate('dashboard'); // Assuming Home goes to dashboard
+    if (path === '/dashboard') return router.push('/dashboard');
+    if (path === '/') return router.push('/dashboard'); // Assuming Home goes to dashboard
     
     console.warn(`Navigation path not handled: ${path}`);
-  }, [navigation]);
+  }, []);
 
 
   const [mobileOpen, setMobileOpen] = useState(false);
