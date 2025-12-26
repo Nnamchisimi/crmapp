@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import{router} from "expo-router";
 import {
   View,
   Text,
@@ -65,7 +66,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const DRAWER_WIDTH = screenWidth * 0.7; 
 
 // IMPORTANT: Replace 'http://localhost:3007' with your actual local IP address 
-const BASE_URL = "http://192.168.55.58:3007"; 
+const BASE_URL = "http://192.168.55.73:3007"; 
 
 // Custom "Chip" equivalent for RN
 const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ label, color, style }) => (
@@ -79,18 +80,27 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
 const CampaignsPage: React.FC<CampaignsProps> = ({ navigation }) => {
   
   // Helper to convert web paths to RN navigation calls
+  // Helper to convert web paths to RN navigation calls
   const navigate = useCallback((path: string) => {
-    // This logic maps your original web paths to React Navigation calls
-    if (path === '/signin') return navigation.replace('signin');
-    if (path === '/dashboard' || path === '/') return navigation.navigate('dashboard');
-    if (path === '/campaigns') return navigation.navigate('campaigns');
-    // Add other route mappings as needed
-    if (path === '/newsletter') return navigation.navigate('newsletter');
-    if (path === '/notifications') return navigation.navigate('notifications');
-    if (path === '/booking') return navigation.navigate('booking');
-
+    // This logic handles your original web paths and maps them to React Navigation calls
+    if (path === '/signin') return router.replace('/signin');
+    if (path === '/addVehicle') return router.push('/addVehicle');
+    if (path === '/campaigns') return router.push('/campaigns');
+        if (path === '/bookings') return router.push('/bookings');
+    if (path === '/notifications') return router.push('/notifications');
+    if (path.startsWith('/vehicles/')) {
+        const id = path.split('/')[2];
+        return router.push({
+          pathname:"/vehicles/[id]",
+          params:{id},
+        });
+    }
+    // Handle other exact matches
+    if (path === '/dashboard') return router.push('/dashboard');
+    if (path === '/') return router.push('/dashboard'); // Assuming Home goes to dashboard
+    
     console.warn(`Navigation path not handled: ${path}`);
-  }, [navigation]);
+  }, []);
 
 
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>([]);

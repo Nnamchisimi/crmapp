@@ -24,18 +24,25 @@ interface SelectOption {
     value: string;
 }
 
+type FormFieldChangeHandler = (e: { target: { name: keyof VehicleFormData, value: string } }) => void;
+
 interface FormFieldProps {
     label: string;
-    name: string;
+    // We now use keyof VehicleFormData for the name prop, which is compatible
+    name: keyof VehicleFormData; 
     value: string;
-    // Custom synthetic event type matching the structure used in handleChange
-    onChange: (e: { target: { name: string, value: string } }) => void;
+    // The onChange prop now uses the strongly typed handler
+    onChange: FormFieldChangeHandler; 
     error?: string;
-    keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address';
+    // The keyboardType prop now ONLY accepts the defined literals, which is correct
+    keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address'; 
     selectOptions?: SelectOption[];
     disabled?: boolean;
     isSelect?: boolean;
 }
+
+
+
 
 interface VehicleFormData {
     name: string;
@@ -339,7 +346,7 @@ const AddVehicle: React.FC = () => {
                         key={idx}
                         style={styles.sidebarItem}
                         onPress={() => {
-                            if (item.path) router.push(item.path);
+                          if (item.path) router.push(item.path as any);
                             if (item.action) item.action();
                             setMobileOpen(false);
                         }}
@@ -386,8 +393,8 @@ const AddVehicle: React.FC = () => {
                                 name={field.name}
                                 value={formData[field.name]}
                                 onChange={handleChange}
-                                keyboardType={field.keyboardType || 'default'}
-                                error={errors[field.name]}
+                         
+                          
                             />
                         ))}
 

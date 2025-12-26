@@ -21,7 +21,7 @@ WebBrowser.maybeCompleteAuthSession();
 // ----------------------
 // Config
 // ----------------------
-const BASE_URL = "http://192.168.55.58:3007"; // or tunnel URL
+const BASE_URL = "http://192.168.55.73:3007"; // or tunnel URL
 
 
 const GOOGLE_WEB_CLIENT_ID =

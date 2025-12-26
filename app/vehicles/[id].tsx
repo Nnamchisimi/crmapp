@@ -15,7 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 // --- CONSTANTS & CONFIGURATION ---
 
-const BASE_URL = "http://192.168.55.58:3007"; // Your server URL
+const BASE_URL = "http://192.168.55.73:3007"; // Your server URL
 const PRIMARY_COLOR = '#00bcd4';
 const BACKGROUND_COLOR = '#000';
 const CARD_BG = 'rgba(255,255,255,0.05)';

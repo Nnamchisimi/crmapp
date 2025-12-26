@@ -62,7 +62,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const DRAWER_WIDTH = screenWidth * 0.7; 
 
 // IMPORTANT: Replace 'http://localhost:3007' with your actual local IP address (e.g., 'http://192.168.1.5:3007')
-const BASE_URL = "http://192.168.55.58:3007"; // or tunnel URL
+const BASE_URL = "http://192.168.55.73:3007"; // or tunnel URL
 
 // Placeholder component for BrandLogo
 const BrandLogo: React.FC<{ brand: string, size: 'lg' | 'sm', showName: boolean }> = ({ brand, size }) => (
@@ -89,6 +89,7 @@ const Dashboard: React.FC = () => {
     if (path === '/signin') return router.replace('/signin');
     if (path === '/addVehicle') return router.push('/addVehicle');
     if (path === '/campaigns') return router.push('/campaigns');
+        if (path === '/bookings') return router.push('/bookings');
     if (path === '/notifications') return router.push('/notifications');
     if (path.startsWith('/vehicles/')) {
         const id = path.split('/')[2];
@@ -282,7 +283,7 @@ const Dashboard: React.FC = () => {
     { text: "Campaigns", icon: "campaign", path: "/campaigns" },
     { text: "Newsletter", icon: "email", path: "/newsletter" },
     { text: "Notifications", icon: "notifications", path: "/notifications" },
-    { text: "Booking", icon: "calendar-month", path: "/booking" },
+    { text: "Booking", icon: "calendar-month", path: "/bookings" },
     { text: "Sign Out", icon: "exit-to-app", path: "/signin" },
   ];
 
