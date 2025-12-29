@@ -41,7 +41,7 @@ interface Branch {
 interface Service {
     id: number;
     name: string;
-    price: number;
+    cost: number;
     durationMinutes: number;
 }
 interface TimeSlot {
@@ -107,8 +107,12 @@ const BookService = () => {
     const [vehicleLoading, setVehicleLoading] = useState(true);
 
     // New States for subsequent steps
-    const [branches, setBranches] = useState<Branch[]>([]);
-    const [services, setServices] = useState<Service[]>([]);
+    const [branches, setBranch] = useState<Branch[]>([]);
+       const[branchesLoading, setBranchLoading] = useState(true);
+
+    const [services, setServiceTypes] = useState<Service[]>([]);
+    const[serviceLoading, setServiceLoading] =useState(true);
+
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
     const [dataLoading, setDataLoading] = useState(false); // General data loading
 
@@ -141,34 +145,9 @@ const BookService = () => {
         ]);
     }, [navigation]);
 
-    // --- FETCH BRANCHES (STEP 1 DATA) ---
-    const fetchBranches = useCallback(async () => {
-        setDataLoading(true);
-        // MOCK FETCH: Replace with real API call (e.g., /api/branches)
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-        const mockBranches: Branch[] = [
-            { id: 1, name: "Downtown Service Center", address: "123 Main St, City" },
-            { id: 2, name: "Industrial Park Repair", address: "45 Business Blvd, Town" },
-            { id: 3, name: "North Side Quick Lube", address: "789 Highway, Suburb" },
-        ];
-        setBranches(mockBranches);
-        setDataLoading(false);
-    }, []);
 
-    // --- FETCH SERVICES (STEP 2 DATA) ---
-    const fetchServices = useCallback(async () => {
-        setDataLoading(true);
-        // MOCK FETCH: Replace with real API call (e.g., /api/services)
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-        const mockServices: Service[] = [
-            { id: 101, name: "Oil Change + Filter", price: 79.99, durationMinutes: 45 },
-            { id: 102, name: "Tire Rotation", price: 39.99, durationMinutes: 30 },
-            { id: 103, name: "Full Inspection", price: 149.99, durationMinutes: 90 },
-            { id: 104, name: "Brake Pad Replacement", price: 250.00, durationMinutes: 120 },
-        ];
-        setServices(mockServices);
-        setDataLoading(false);
-    }, []);
+    
+
 
     // --- FETCH TIME SLOTS (STEP 3 DATA) ---
     const fetchTimeSlots = useCallback(async (branchId: number, date: Date) => {
@@ -239,11 +218,86 @@ const BookService = () => {
         // Post-submission, you might navigate away or reset the state
     };
 
+        useEffect(() => {
+        const fetchbranch = async () => {
+            setBranchLoading(true);
+            
+            if (!token) {
+                setBranchLoading(false);
+                return; 
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/branch`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                }); 
+                
+                if (res.status === 401 || res.status === 403) {
+                    handleAuthError();
+                    return;
+                }
 
-    // --- EFFECTS ---
-    // Fetch vehicles (Step 0)
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+
+                const data = await res.json();
+                setBranch(data);
+            } catch (err) {
+                console.error("Error fetching service types:", err);
+            } finally {
+                setBranchLoading(false);
+            }
+        };
+        
+        fetchbranch(); 
+        
+    }, [token, authLoading]); 
+
+    
+    // 2. Fetch Service Type Data
     useEffect(() => {
-        // ... (Vehicle fetch logic remains the same)
+        const fetchServiceTypes = async () => {
+            setServiceLoading(true);
+            
+            if (!token) {
+                setServiceLoading(false);
+                return; 
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/servicetype`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                }); 
+                
+                if (res.status === 401 || res.status === 403) {
+                    handleAuthError();
+                    return;
+                }
+
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+
+                const data = await res.json();
+                setServiceTypes(data);
+            } catch (err) {
+                console.error("Error fetching service types:", err);
+            } finally {
+                setServiceLoading(false);
+            }
+        };
+        
+        fetchServiceTypes(); 
+        
+    },[token, authLoading]);
+    
+
+    useEffect(() => {
         const fetchVehicles = async () => {
             if (!token) {
                 setVehicleLoading(false);
@@ -288,17 +342,12 @@ const BookService = () => {
 
     // Fetch data for the current step
     useEffect(() => {
-        if (step === 1 && branches.length === 0) {
-            fetchBranches();
-        }
-        if (step === 2 && services.length === 0) {
-            fetchServices();
-        }
+
         if (step === 3 && bookingData.branch && bookingData.date) {
             // Only fetch time slots if both branch and date are selected
             fetchTimeSlots(bookingData.branch.id, bookingData.date);
         }
-    }, [step, branches.length, services.length, bookingData.branch, bookingData.date, fetchBranches, fetchServices, fetchTimeSlots]);
+    }, [step, branches.length, services.length, bookingData.branch, bookingData.date, fetchTimeSlots]);
 
 
     // --- STEP RENDER FUNCTIONS ---
@@ -413,55 +462,72 @@ const BookService = () => {
         );
     };
 
-    const renderStep2Service = () => {
-        if (dataLoading) {
-             return (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-                    <Text style={styles.text}>Loading services...</Text>
-                </View>
-            );
-        }
-        
+   const renderStep2Service = () => {
+    // 1. Loading Check: Use the specific state and check for empty data!
+    if (serviceLoading) {
         return (
-            <ScrollView style={styles.contentArea}>
-                <Text style={styles.selectionTitle}>Branch: {bookingData.branch?.name}</Text>
-
-                {services.map((s) => (
-                    <TouchableOpacity
-                        key={s.id}
-                        style={[
-                            styles.cardFull,
-                            bookingData.service?.id === s.id && styles.cardSelected,
-                        ]}
-                        onPress={() => handleSelectService(s)}
-                    >
-                        <View style={{flex: 1}}>
-                            <Text style={styles.cardTitle}>{s.name}</Text>
-                            <Text style={styles.cardText}>Duration: {s.durationMinutes} min</Text>
-                        </View>
-                        <Text style={[styles.cardTitle, {color: PRIMARY_COLOR, fontSize: 18}]}>
-                            ${s.price.toFixed(2)}
-                        </Text>
-                        {bookingData.service?.id === s.id && <MaterialIcons name="check" size={24} color={BACKGROUND_COLOR} />}
-                    </TouchableOpacity>
-                ))}
-
-                 <View style={styles.buttonContainerRow}>
-                    <TouchableOpacity style={styles.secondaryButtonHalf} onPress={handlePrevStep}>
-                        <Text style={styles.secondaryButtonText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={bookingData.service ? styles.primaryButtonHalf : styles.disabledButtonHalf}
-                        onPress={handleNextStep}
-                        disabled={!bookingData.service}
-                    >
-                        <Text style={styles.addButtonText}>Next</Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
+            <View style={styles.center}>
+                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+                <Text style={styles.text}>Loading services...</Text>
+            </View>
         );
-    };
+    }
+    
+    // 2. Empty Data/Error Check: If loading is done, but the array is empty
+    if (!services || services.length === 0) {
+        return (
+            <View style={styles.center}>
+                <Text style={styles.cardTitle}>No Services Available</Text>
+                <Text style={styles.cardText}>Please choose another branch or contact support.</Text>
+            </View>
+        );
+    }
+    
+    // 3. Render Data (with price check)
+    return (
+        <ScrollView style={styles.contentArea}>
+            <Text style={styles.selectionTitle}>Branch: {bookingData.branch?.name}</Text>
+
+            {services.map((s) => (
+                <TouchableOpacity
+                    key={s.id}
+                    style={[
+                        styles.cardFull,
+                        bookingData.service?.id === s.id && styles.cardSelected,
+                    ]}
+                    onPress={() => handleSelectService(s)}
+                >
+                    <View style={{flex: 1}}>
+                        <Text style={styles.cardTitle}>{s.name}</Text>
+                        <Text style={styles.cardText}>Duration: {s.durationMinutes} min</Text>
+                    </View>
+                    
+                    {/* FIX #1: Defensive Check for s.cost */}
+                    <Text style={[styles.cardTitle, {color: PRIMARY_COLOR, fontSize: 18}]}>
+                        {s.cost !== undefined && s.cost !== null
+                            ? `$${Number(s.cost).toFixed(2)}`
+                            : 'Price N/A'}
+                    </Text>
+                    
+                    {bookingData.service?.id === s.id && <MaterialIcons name="check" size={24} color={BACKGROUND_COLOR} />}
+                </TouchableOpacity>
+            ))}
+
+            <View style={styles.buttonContainerRow}>
+                <TouchableOpacity style={styles.secondaryButtonHalf} onPress={handlePrevStep}>
+                    <Text style={styles.secondaryButtonText}>Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={bookingData.service ? styles.primaryButtonHalf : styles.disabledButtonHalf}
+                    onPress={handleNextStep}
+                    disabled={!bookingData.service}
+                >
+                    <Text style={styles.addButtonText}>Next</Text>
+                </TouchableOpacity>
+            </View>
+        </ScrollView>
+    );
+};
 
     const renderStep3DateTime = () => {
         const selectedDateText = bookingData.date 
@@ -559,7 +625,7 @@ const BookService = () => {
                 </View>
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Service:</Text>
-                    <Text style={styles.summaryValue}>{service?.name} (${service?.price.toFixed(2)})</Text>
+                    <Text style={styles.summaryValue}>{service?.name} (${service?.cost.toFixed(2)})</Text>
                 </View>
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Date & Time:</Text>
