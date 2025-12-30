@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker"; // Necessary for Date/Time picker
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 // --------------------------------------------------
 // CONFIG
@@ -21,9 +21,12 @@ const API_BASE_URL = "http://192.168.55.73:3007";
 const PRIMARY_COLOR = "#00bcd4";
 const BACKGROUND_COLOR = "#1a1a1a";
 const CARD_BG = "rgba(255,255,255,0.05)";
+const WHITE_TEXT = "#ffffff";
+const SECONDARY_TEXT = "rgba(255,255,255,0.7)";
+const DISABLED_COLOR = "rgba(0,188,212,0.3)";
 
 // --------------------------------------------------
-// TYPES (Full definitions for clarity)
+// TYPES
 // --------------------------------------------------
 interface Vehicle {
     id: number;
@@ -40,21 +43,23 @@ interface Branch {
 }
 interface Service {
     id: number;
-    name: string;
+    label: string;
     cost: number;
     durationMinutes: number;
 }
 interface TimeSlot {
-    time: string; // e.g., "09:00"
+    time: string;
     isAvailable: boolean;
+    remainingQuota: number;
 }
+
 interface BookingData {
     vehicle: Vehicle | null;
     branch: Branch | null;
     service: Service | null;
-    date: Date | null; // Using Date object for picker
-    timeSlot: string | null; 
-    userEmail: string | null;
+    date: Date | null;
+    timeSlot: string | null;
+    userEmail: string | null; // Kept for state clarity, but not sent to API
 }
 
 const steps = [
@@ -106,12 +111,11 @@ const BookService = () => {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [vehicleLoading, setVehicleLoading] = useState(true);
 
-    // New States for subsequent steps
-    const [branches, setBranch] = useState<Branch[]>([]);
-       const[branchesLoading, setBranchLoading] = useState(true);
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [branchesLoading, setBranchLoading] = useState(true);
 
     const [services, setServiceTypes] = useState<Service[]>([]);
-    const[serviceLoading, setServiceLoading] =useState(true);
+    const [serviceLoading, setServiceLoading] = useState(true);
 
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
     const [dataLoading, setDataLoading] = useState(false); // General data loading
@@ -124,7 +128,7 @@ const BookService = () => {
         timeSlot: null,
         userEmail: email,
     });
-    
+
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     // --- UTILITY/API MOCKS ---
@@ -133,7 +137,6 @@ const BookService = () => {
     };
 
     const handleAuthError = useCallback(() => {
-        // ... (Auth error logic remains the same)
         Alert.alert("Session expired", "Please sign in again.", [
             {
                 text: "OK",
@@ -146,28 +149,63 @@ const BookService = () => {
     }, [navigation]);
 
 
-    
-
-
     // --- FETCH TIME SLOTS (STEP 3 DATA) ---
-    const fetchTimeSlots = useCallback(async (branchId: number, date: Date) => {
-        setDataLoading(true);
-        // MOCK FETCH: Replace with real API call (e.g., /api/times/branch/date)
-        console.log(`Fetching slots for Branch ${branchId} on ${date.toDateString()}`);
-        await new Promise(resolve => setTimeout(resolve, 700)); 
-        
-        const mockTimeSlots: TimeSlot[] = [
-            { time: "09:00", isAvailable: true },
-            { time: "10:30", isAvailable: false },
-            { time: "11:00", isAvailable: true },
-            { time: "13:00", isAvailable: true },
-            { time: "14:30", isAvailable: false },
-            { time: "15:00", isAvailable: true },
-        ];
-        setTimeSlots(mockTimeSlots);
-        setDataLoading(false);
-    }, []);
-    
+    const fetchTimeSlots = useCallback(
+        async (branchId: number, date: Date) => {
+            if (!token) return;
+
+            setDataLoading(true);
+            setTimeSlots([]); // reset previous slots
+            updateBookingData('timeSlot', null); // Clear selected time on date change
+
+            try {
+                const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD
+
+                // Note: branchId should ideally be part of the URL/query for a real system
+                const res = await fetch(
+                    `${API_BASE_URL}/api/timeslots?branchId=${branchId}&date=${formattedDate}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                if (res.status === 401 || res.status === 403) {
+                    handleAuthError();
+                    return;
+                }
+
+                if (!res.ok) {
+                    throw new Error(`Failed to fetch time slots (${res.status})`);
+                }
+
+                const data = await res.json();
+
+                // Weekend or no availability
+                if (!Array.isArray(data) || data.length === 0) {
+                    setTimeSlots([]);
+                    return;
+                }
+
+                const mappedSlots: TimeSlot[] = data.map((slot: any) => ({
+                    time: slot.slot_time,
+                    isAvailable: slot.is_available,
+                    remainingQuota: slot.remaining_quota,
+                }));
+
+                setTimeSlots(mappedSlots);
+            } catch (err) {
+                console.error("Error fetching time slots:", err);
+                Alert.alert("Error", "Unable to load time slots for this date.");
+                setTimeSlots([]);
+            } finally {
+                setDataLoading(false);
+            }
+        },
+        [token]
+    );
+
     // --- STEP HANDLERS ---
     const handleNextStep = () => {
         setStep(prev => prev < steps.length - 1 ? prev + 1 : prev);
@@ -179,6 +217,7 @@ const BookService = () => {
 
     const handleSelectBranch = (branch: Branch) => {
         updateBookingData('branch', branch);
+        updateBookingData('service', null); // Reset service selection when changing branch
         handleNextStep();
     };
 
@@ -188,117 +227,178 @@ const BookService = () => {
     };
 
     const handleDateChange = (event: any, selectedDate?: Date) => {
-        setShowDatePicker(Platform.OS === 'ios'); // Keep picker open on Android
+        // Hide picker immediately on iOS or when a date is selected on Android
+        if (Platform.OS === 'ios' || selectedDate) {
+            setShowDatePicker(false);
+        }
+
         if (selectedDate) {
-            updateBookingData('date', selectedDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const selectedDay = new Date(selectedDate);
+            selectedDay.setHours(0, 0, 0, 0);
+
+            if (selectedDay < today) {
+                Alert.alert("Invalid Date", "Please select today or a future date.");
+                return;
+            }
+
+            // This update triggers the fetchTimeSlots useEffect
+            updateBookingData("date", selectedDate); 
+            updateBookingData("timeSlot", null); // reset selected time
+            setTimeSlots([]); // clear old slots until new ones are fetched
         }
     };
-    
+
     const handleSelectTimeSlot = (time: string) => {
         updateBookingData('timeSlot', time);
-        handleNextStep();
+        // Note: We don't call handleNextStep here, user stays on the screen 
+        // until they hit 'Confirm & Book'
     };
 
+    /**
+     * ✅ FIX: Corrected API submission logic and payload mapping.
+     */
     const handleSubmitBooking = async () => {
-        if (!bookingData.vehicle || !bookingData.branch || !bookingData.service || !bookingData.date || !bookingData.timeSlot) {
-            Alert.alert("Missing Information", "Please complete all steps before confirming.");
+        // 1. Validation Check 
+        if (!bookingData.vehicle || !bookingData.branch || !bookingData.service || !bookingData.date || !bookingData.timeSlot || !token) {
+            Alert.alert("Missing Information", "Please complete all steps and ensure you are logged in before confirming.");
             return;
         }
 
-        // MOCK API CALL for booking submission
         setDataLoading(true);
-        console.log("Submitting Booking:", bookingData);
+        
+        // 2. Prepare Data for API (MAPPING TO BACKEND NAMES)
+        const submissionData = {
+            vehicleId: bookingData.vehicle.id,
+            serviceTypeId: bookingData.service.id, 
+            branchId: bookingData.branch.id,
+            
+            // Format date to YYYY-MM-DD string as expected by the backend
+            appointmentDate: bookingData.date.toISOString().split("T")[0], 
+            
+            // Time slot string (e.g., "09:00")
+            appointmentTime: bookingData.timeSlot,
+        };
 
-        // Replace with real POST request to /api/bookings
-        await new Promise(resolve => setTimeout(resolve, 1500)); 
+        try {
+            // 3. API Call
+            const res = await fetch(`${API_BASE_URL}/api/bookings`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`, 
+                },
+                body: JSON.stringify(submissionData),
+            });
 
-        setDataLoading(false);
-        setStep(4); // Move to final confirmation screen
+            // 4. Handle Authentication Errors
+            if (res.status === 401 || res.status === 403) {
+                handleAuthError();
+                return;
+            }
 
-        // Post-submission, you might navigate away or reset the state
+            // 5. Handle General HTTP Errors 
+            if (!res.ok) {
+                const errorBody = await res.json().catch(() => ({})); 
+                throw new Error(errorBody.message || `Booking failed with status: ${res.status}`);
+            }
+
+            // 6. Success (Backend returns status 201)
+            const successResponse = await res.json();
+            Alert.alert("Success", successResponse.message || "Your appointment has been successfully scheduled.");
+            setStep(4); // Move to final confirmation screen
+
+        } catch (err) {
+            // 7. Handle Errors
+            console.error("Error submitting booking:", err);
+            Alert.alert("Booking Failed", (err as Error).message);
+        } finally {
+            setDataLoading(false);
+        }
     };
 
-        useEffect(() => {
-        const fetchbranch = async () => {
+
+    // 1. Fetch Branch Data
+    useEffect(() => {
+        const fetchBranches = async () => { 
             setBranchLoading(true);
-            
             if (!token) {
                 setBranchLoading(false);
-                return; 
+                return;
             }
-            
             try {
                 const res = await fetch(`${API_BASE_URL}/api/branch`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                    },
-                }); 
-                
+                    headers: { "Authorization": `Bearer ${token}` },
+                });
                 if (res.status === 401 || res.status === 403) {
                     handleAuthError();
                     return;
                 }
-
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
                 }
-
                 const data = await res.json();
-                setBranch(data);
+                setBranches(data);
             } catch (err) {
-                console.error("Error fetching service types:", err);
+                console.error("Error fetching branches:", err);
+                Alert.alert("Error", "Failed to load branches.");
             } finally {
                 setBranchLoading(false);
             }
         };
-        
-        fetchbranch(); 
-        
-    }, [token, authLoading]); 
+        if (!authLoading) {
+            fetchBranches();
+        }
+    }, [token, authLoading]);
 
-    
-    // 2. Fetch Service Type Data
+// 2. Fetch Service Type Data
     useEffect(() => {
         const fetchServiceTypes = async () => {
             setServiceLoading(true);
-            
             if (!token) {
                 setServiceLoading(false);
-                return; 
+                return;
             }
-            
             try {
                 const res = await fetch(`${API_BASE_URL}/api/servicetype`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                    },
-                }); 
-                
+                    headers: { "Authorization": `Bearer ${token}` },
+                });
                 if (res.status === 401 || res.status === 403) {
                     handleAuthError();
                     return;
                 }
-
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
                 }
-
                 const data = await res.json();
-                setServiceTypes(data);
+                
+                // FIX: Map the data and convert 'cost' to a number
+                const parsedServices = data.map((s: any) => ({
+                    ...s,
+                    cost: parseFloat(s.cost), 
+                }));
+                
+                setServiceTypes(parsedServices);
+                
             } catch (err) {
                 console.error("Error fetching service types:", err);
+                Alert.alert("Error", "Failed to load service types.");
             } finally {
                 setServiceLoading(false);
             }
         };
-        
-        fetchServiceTypes(); 
-        
-    },[token, authLoading]);
-    
+        if (!authLoading) {
+            fetchServiceTypes();
+        }
+    }, [token, authLoading]);
 
+
+    // 0. Fetch Vehicle Data
     useEffect(() => {
         const fetchVehicles = async () => {
+            setVehicleLoading(true);
             if (!token) {
                 setVehicleLoading(false);
                 return;
@@ -322,7 +422,6 @@ const BookService = () => {
                 const fetchedVehicles = Array.isArray(data) ? data : [];
                 setVehicles(fetchedVehicles);
 
-                // Auto-select if only one vehicle (optional but helpful UX)
                 if (fetchedVehicles.length === 1) {
                     updateBookingData('vehicle', fetchedVehicles[0]);
                 }
@@ -338,21 +437,27 @@ const BookService = () => {
         if (!authLoading) {
             fetchVehicles();
         }
-    }, [token, authLoading, handleAuthError]);
+    }, [token, authLoading]);
 
-    // Fetch data for the current step
+    // Trigger time slot fetch when branch or date changes on step 3
     useEffect(() => {
-
         if (step === 3 && bookingData.branch && bookingData.date) {
-            // Only fetch time slots if both branch and date are selected
             fetchTimeSlots(bookingData.branch.id, bookingData.date);
         }
-    }, [step, branches.length, services.length, bookingData.branch, bookingData.date, fetchTimeSlots]);
+    }, [step, bookingData.branch, bookingData.date, fetchTimeSlots]);
 
 
     // --- STEP RENDER FUNCTIONS ---
     const renderStep0Vehicle = () => {
-        // ... (Existing Step 0 logic)
+        if (vehicleLoading) {
+            return (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+                    <Text style={styles.text}>Loading vehicles...</Text>
+                </View>
+            );
+        }
+
         if (vehicles.length === 0) {
             return (
                 <View style={styles.center}>
@@ -421,7 +526,7 @@ const BookService = () => {
     };
 
     const renderStep1Branch = () => {
-        if (dataLoading) {
+        if (branchesLoading) {
             return (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color={PRIMARY_COLOR} />
@@ -429,11 +534,11 @@ const BookService = () => {
                 </View>
             );
         }
-        
+
         return (
             <ScrollView style={styles.contentArea}>
                 <Text style={styles.selectionTitle}>Selected Vehicle: {bookingData.vehicle?.brand} {bookingData.vehicle?.model}</Text>
-                
+
                 {branches.map((b) => (
                     <TouchableOpacity
                         key={b.id}
@@ -443,17 +548,17 @@ const BookService = () => {
                         ]}
                         onPress={() => handleSelectBranch(b)}
                     >
-                        <View style={styles.branchIcon}>
-                            <MaterialIcons name="location-on" size={24} color={bookingData.branch?.id === b.id ? BACKGROUND_COLOR : PRIMARY_COLOR} />
+                        <View style={[styles.branchIcon, bookingData.branch?.id === b.id && {backgroundColor: BACKGROUND_COLOR}]}>
+                            <MaterialIcons name="location-on" size={24} color={bookingData.branch?.id === b.id ? PRIMARY_COLOR : PRIMARY_COLOR} />
                         </View>
-                        <View style={{flex: 1}}>
+                        <View style={{ flex: 1 }}>
                             <Text style={styles.cardTitle}>{b.name}</Text>
                             <Text style={styles.cardText}>{b.address}</Text>
                         </View>
-                        {bookingData.branch?.id === b.id && <MaterialIcons name="check" size={24} color={BACKGROUND_COLOR} />}
+                        {bookingData.branch?.id === b.id && <MaterialIcons name="check" size={24} color={PRIMARY_COLOR} />}
                     </TouchableOpacity>
                 ))}
-                 <View style={styles.buttonContainer}>
+                <View style={styles.buttonContainer}>
                     <TouchableOpacity style={styles.secondaryButton} onPress={handlePrevStep}>
                         <Text style={styles.secondaryButtonText}>Back</Text>
                     </TouchableOpacity>
@@ -462,92 +567,94 @@ const BookService = () => {
         );
     };
 
-   const renderStep2Service = () => {
-    // 1. Loading Check: Use the specific state and check for empty data!
-    if (serviceLoading) {
+    const renderStep2Service = () => {
+        // 1. Loading Check
+        if (serviceLoading) {
+            return (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+                    <Text style={styles.text}>Loading services...</Text>
+                </View>
+            );
+        }
+
+        // 2. Empty Data/Error Check
+        if (!services || services.length === 0) {
+            return (
+                <View style={styles.center}>
+                    <Text style={styles.cardTitle}>No Services Available</Text>
+                    <Text style={styles.cardText}>Please choose another branch or contact support.</Text>
+                </View>
+            );
+        }
+
+        // 3. Render Data 
         return (
-            <View style={styles.center}>
-                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-                <Text style={styles.text}>Loading services...</Text>
-            </View>
+            <ScrollView style={styles.contentArea}>
+                <Text style={styles.selectionTitle}>Branch: {bookingData.branch?.name}</Text>
+
+                {services.map((s) => (
+                    <TouchableOpacity
+                        key={s.id}
+                        style={[
+                            styles.cardFull,
+                            bookingData.service?.id === s.id && styles.cardSelected,
+                        ]}
+                        onPress={() => handleSelectService(s)}
+                    >
+                        
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.cardTitle}>{s.label}</Text>
+                            <Text style={styles.cardText}>Duration: {s.durationMinutes} min</Text>
+                        </View>
+
+                        <Text style={[styles.cardTitle, {marginRight: 10}]}>
+                            ${s.cost.toFixed(2)}
+                        </Text>
+
+                        {bookingData.service?.id === s.id && <MaterialIcons name="check" size={24} color={PRIMARY_COLOR} />}
+                    </TouchableOpacity>
+                ))}
+
+                <View style={styles.buttonContainerRow}>
+                    <TouchableOpacity style={styles.secondaryButtonHalf} onPress={handlePrevStep}>
+                        <Text style={styles.secondaryButtonText}>Back</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={bookingData.service ? styles.primaryButtonHalf : styles.disabledButtonHalf}
+                        onPress={handleNextStep}
+                        disabled={!bookingData.service}
+                    >
+                        <Text style={styles.addButtonText}>Next</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
         );
-    }
-    
-    // 2. Empty Data/Error Check: If loading is done, but the array is empty
-    if (!services || services.length === 0) {
-        return (
-            <View style={styles.center}>
-                <Text style={styles.cardTitle}>No Services Available</Text>
-                <Text style={styles.cardText}>Please choose another branch or contact support.</Text>
-            </View>
-        );
-    }
-    
-    // 3. Render Data (with price check)
-    return (
-        <ScrollView style={styles.contentArea}>
-            <Text style={styles.selectionTitle}>Branch: {bookingData.branch?.name}</Text>
+    };
 
-            {services.map((s) => (
-                <TouchableOpacity
-                    key={s.id}
-                    style={[
-                        styles.cardFull,
-                        bookingData.service?.id === s.id && styles.cardSelected,
-                    ]}
-                    onPress={() => handleSelectService(s)}
-                >
-                    <View style={{flex: 1}}>
-                        <Text style={styles.cardTitle}>{s.name}</Text>
-                        <Text style={styles.cardText}>Duration: {s.durationMinutes} min</Text>
-                    </View>
-                    
-                    {/* FIX #1: Defensive Check for s.cost */}
-                    <Text style={[styles.cardTitle, {color: PRIMARY_COLOR, fontSize: 18}]}>
-                        {s.cost !== undefined && s.cost !== null
-                            ? `$${Number(s.cost).toFixed(2)}`
-                            : 'Price N/A'}
-                    </Text>
-                    
-                    {bookingData.service?.id === s.id && <MaterialIcons name="check" size={24} color={BACKGROUND_COLOR} />}
-                </TouchableOpacity>
-            ))}
-
-            <View style={styles.buttonContainerRow}>
-                <TouchableOpacity style={styles.secondaryButtonHalf} onPress={handlePrevStep}>
-                    <Text style={styles.secondaryButtonText}>Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={bookingData.service ? styles.primaryButtonHalf : styles.disabledButtonHalf}
-                    onPress={handleNextStep}
-                    disabled={!bookingData.service}
-                >
-                    <Text style={styles.addButtonText}>Next</Text>
-                </TouchableOpacity>
-            </View>
-        </ScrollView>
-    );
-};
-
+    /**
+     * ✅ FIX: Added loading state management to the Confirm & Book button.
+     */
     const renderStep3DateTime = () => {
-        const selectedDateText = bookingData.date 
-            ? bookingData.date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) 
+        const selectedDateText = bookingData.date
+            ? bookingData.date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
             : "Select a date";
 
         return (
             <View style={styles.contentArea}>
-                <Text style={styles.selectionTitle}>Service: {bookingData.service?.name}</Text>
+                <Text style={styles.selectionTitle}>Service: {bookingData.service?.label}</Text>
 
                 {/* Date Picker Section */}
                 <Text style={styles.label}>1. Choose Date</Text>
-                <TouchableOpacity 
-                    style={styles.inputField} 
+                <TouchableOpacity
+                    style={styles.inputField}
                     onPress={() => setShowDatePicker(true)}
                 >
                     <Text style={styles.inputText}>{selectedDateText}</Text>
                     <MaterialIcons name="calendar-today" size={20} color={PRIMARY_COLOR} />
                 </TouchableOpacity>
 
+                {/* --- DATE TIME PICKER --- */}
                 {showDatePicker && (
                     <DateTimePicker
                         value={bookingData.date || new Date()}
@@ -557,51 +664,67 @@ const BookService = () => {
                         minimumDate={new Date()}
                     />
                 )}
+                {/* --- END DATE TIME PICKER --- */}
 
                 {/* Time Slot Section */}
                 <Text style={styles.label}>2. Select Time Slot (Duration: {bookingData.service?.durationMinutes} min)</Text>
-                
-                {dataLoading && <ActivityIndicator size="small" color={PRIMARY_COLOR} style={{marginTop: 10}}/>}
+
+                {/* Show spinner when fetching slots */}
+                {dataLoading && !bookingData.timeSlot && <ActivityIndicator size="small" color={PRIMARY_COLOR} style={{ marginTop: 10 }} />}
 
                 {bookingData.date && !dataLoading && (
                     <View style={styles.timeGrid}>
-                        {timeSlots.map((slot, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={[
-                                    styles.timeCard,
-                                    !slot.isAvailable && styles.timeCardUnavailable,
-                                    bookingData.timeSlot === slot.time && styles.timeCardSelected,
-                                ]}
-                                onPress={() => slot.isAvailable && handleSelectTimeSlot(slot.time)}
-                                disabled={!slot.isAvailable}
-                            >
-                                <Text style={styles.timeText}>{slot.time}</Text>
-                            </TouchableOpacity>
-                        ))}
+                        {timeSlots.length > 0 ? (
+                            timeSlots.map((slot, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={[
+                                        styles.timeCard,
+                                        !slot.isAvailable && styles.timeCardUnavailable,
+                                        bookingData.timeSlot === slot.time && styles.timeCardSelected,
+                                    ]}
+                                    onPress={() => slot.isAvailable && handleSelectTimeSlot(slot.time)}
+                                    disabled={!slot.isAvailable}
+                                >
+                                    <Text style={styles.timeText}>{slot.time}</Text>
+                                </TouchableOpacity>
+                            ))
+                        ) : (
+                            <Text style={[styles.text, {textAlign: 'left', marginLeft: 5}]}>No available slots for this date.</Text>
+                        )}
                     </View>
                 )}
-                
-                {/* Navigation Buttons */}
+                 {/* Navigation Buttons */}
                 <View style={styles.buttonContainerRow}>
                     <TouchableOpacity style={styles.secondaryButtonHalf} onPress={handlePrevStep}>
                         <Text style={styles.secondaryButtonText}>Back</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={(bookingData.date && bookingData.timeSlot) ? styles.primaryButtonHalf : styles.disabledButtonHalf}
+                        // Style reflects loading state
+                        style={
+                            (bookingData.date && bookingData.timeSlot && !dataLoading) 
+                                ? styles.primaryButtonHalf 
+                                : styles.disabledButtonHalf
+                        }
                         onPress={handleSubmitBooking}
-                        disabled={!(bookingData.date && bookingData.timeSlot)}
+                        // Disabled if required fields are missing OR data is loading (submitting)
+                        disabled={!(bookingData.date && bookingData.timeSlot) || dataLoading}
                     >
-                        <Text style={styles.addButtonText}>Confirm & Book</Text>
+                         {/* Conditional rendering for loading spinner */}
+                         {dataLoading ? (
+                            <ActivityIndicator color={WHITE_TEXT} />
+                        ) : (
+                            <Text style={styles.addButtonText}>Confirm & Book</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
         );
     };
 
-    const renderStep4Confirmation = () => {
+const renderStep4Confirmation = () => {
         const { vehicle, branch, service, date, timeSlot } = bookingData;
-        
+
         return (
             <ScrollView style={styles.contentArea}>
                 <View style={styles.confirmationBox}>
@@ -613,7 +736,6 @@ const BookService = () => {
                 </View>
 
                 <Text style={styles.summaryHeader}>Booking Summary</Text>
-                {/*  - Visual for data confirmation */}
 
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Vehicle:</Text>
@@ -625,7 +747,7 @@ const BookService = () => {
                 </View>
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Service:</Text>
-                    <Text style={styles.summaryValue}>{service?.name} (${service?.cost.toFixed(2)})</Text>
+                    <Text style={styles.summaryValue}>{service?.label} (${service?.cost.toFixed(2)})</Text>
                 </View>
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Date & Time:</Text>
@@ -635,8 +757,9 @@ const BookService = () => {
                 </View>
 
                 <TouchableOpacity
-                    style={[styles.primaryButton, {marginTop: 30}]}
-                    onPress={() => navigation.navigate("Home")} // Navigate back home
+                    style={[styles.primaryButton, { marginTop: 30 }]}
+                    // FIX: Changed navigation target to "Dashboard" or similar main screen
+                    onPress={() => navigation.navigate("dashboard")} 
                 >
                     <Text style={styles.addButtonText}>Done</Text>
                 </TouchableOpacity>
@@ -648,7 +771,7 @@ const BookService = () => {
     // MASTER STEP RENDER
     // --------------------------------------------------
     const renderStep = () => {
-        if (vehicleLoading || authLoading) {
+        if (vehicleLoading || authLoading || branchesLoading || serviceLoading) {
             return (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color={PRIMARY_COLOR} />
@@ -673,11 +796,9 @@ const BookService = () => {
             case 1: // Choose Branch
                 return renderStep1Branch();
             case 2: // Select Service
-                // Enforce Step 0 completion before proceeding
                 if (!bookingData.vehicle) return <View style={styles.center}><Text style={styles.errorText}>Please select a vehicle first.</Text></View>;
                 return renderStep2Service();
             case 3: // Select Date & Time
-                // Enforce Step 1 & 2 completion
                 if (!bookingData.branch || !bookingData.service) return <View style={styles.center}><Text style={styles.errorText}>Please select branch and service first.</Text></View>;
                 return renderStep3DateTime();
             case 4: // Confirmation
@@ -713,6 +834,8 @@ const BookService = () => {
     );
 };
 
+
+
 export default BookService;
 
 // --------------------------------------------------
@@ -741,6 +864,8 @@ const styles = StyleSheet.create({
         height: 10,
         borderRadius: 5,
         backgroundColor: "rgba(255,255,255,0.3)",
+        flex: 1, // Make dots expand to fill space
+        marginHorizontal: 4,
     },
     dotActive: {
         backgroundColor: PRIMARY_COLOR,
@@ -771,6 +896,8 @@ const styles = StyleSheet.create({
     },
     contentArea: {
         flex: 1,
+        // Using paddingBottom with ScrollView requires contentContainerStyle, 
+        // but for a single-page view, this is fine.
         paddingBottom: 20,
     },
     selectionTitle: {
@@ -898,14 +1025,16 @@ const styles = StyleSheet.create({
     confirmationText: {
         color: 'rgba(255,255,255,0.8)',
         textAlign: 'center',
-        marginTop: 5,
-        marginBottom: 15,
     },
     summaryHeader: {
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
+        marginTop: 10,
         marginBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: PRIMARY_COLOR,
+        paddingBottom: 5,
     },
     summaryItem: {
         flexDirection: 'row',
@@ -920,13 +1049,15 @@ const styles = StyleSheet.create({
     },
     summaryValue: {
         color: '#fff',
-        fontSize: 16,
         fontWeight: '600',
+        fontSize: 16,
+        maxWidth: '60%',
+        textAlign: 'right',
     },
-    // --- Button Styles ---
+    // --- Buttons ---
     buttonContainer: {
-        width: '100%',
         marginTop: 20,
+        alignItems: 'center',
     },
     buttonContainerRow: {
         flexDirection: 'row',
@@ -935,57 +1066,61 @@ const styles = StyleSheet.create({
     },
     primaryButton: {
         backgroundColor: PRIMARY_COLOR,
-        paddingVertical: 14,
+        padding: 15,
         borderRadius: 8,
-        alignItems: 'center',
         width: '100%',
+        alignItems: 'center',
+        marginTop: 10,
     },
     primaryButtonHalf: {
         backgroundColor: PRIMARY_COLOR,
-        paddingVertical: 14,
+        padding: 15,
         borderRadius: 8,
-        alignItems: 'center',
         width: '48%',
+        alignItems: 'center',
     },
     secondaryButton: {
-        borderColor: PRIMARY_COLOR,
-        borderWidth: 1,
-        paddingVertical: 14,
+        backgroundColor: 'transparent',
+        padding: 15,
         borderRadius: 8,
-        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
         width: '100%',
+        alignItems: 'center',
         marginTop: 10,
     },
     secondaryButtonHalf: {
-        borderColor: PRIMARY_COLOR,
-        borderWidth: 1,
-        paddingVertical: 14,
+        backgroundColor: 'transparent',
+        padding: 15,
         borderRadius: 8,
-        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
         width: '48%',
+        alignItems: 'center',
     },
     disabledButton: {
-        backgroundColor: 'rgba(0,188,212,0.5)',
-        paddingVertical: 14,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        padding: 15,
         borderRadius: 8,
-        alignItems: 'center',
         width: '100%',
+        alignItems: 'center',
+        marginTop: 10,
     },
     disabledButtonHalf: {
-        backgroundColor: 'rgba(0,188,212,0.5)',
-        paddingVertical: 14,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        padding: 15,
         borderRadius: 8,
-        alignItems: 'center',
         width: '48%',
+        alignItems: 'center',
     },
     addButtonText: {
-        color: "#fff",
-        fontWeight: "bold",
+        color: BACKGROUND_COLOR, // Dark text on primary button
+        fontWeight: 'bold',
         fontSize: 16,
     },
     secondaryButtonText: {
         color: PRIMARY_COLOR,
-        fontWeight: "bold",
+        fontWeight: 'bold',
         fontSize: 16,
-    },
+    }
 });
