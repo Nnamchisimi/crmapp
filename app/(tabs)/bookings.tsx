@@ -14,9 +14,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-// --------------------------------------------------
-// CONFIG
-// --------------------------------------------------
+import { useNavigation } from "@react-navigation/native";
+
 const API_BASE_URL = "http://192.168.55.73:3007";
 const PRIMARY_COLOR = "#00bcd4";
 const BACKGROUND_COLOR = "#1a1a1a";
@@ -25,9 +24,11 @@ const WHITE_TEXT = "#ffffff";
 const SECONDARY_TEXT = "rgba(255,255,255,0.7)";
 const DISABLED_COLOR = "rgba(0,188,212,0.3)";
 
-// --------------------------------------------------
-// TYPES
-// --------------------------------------------------
+const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ label, color, style }) => (
+  <View style={[styles.chip, { backgroundColor: color }, style]}>
+    <Text style={styles.chipText}>{label}</Text>
+  </View>
+);
 interface Vehicle {
     id: number;
     brand: string;
@@ -59,7 +60,7 @@ interface BookingData {
     service: Service | null;
     date: Date | null;
     timeSlot: string | null;
-    userEmail: string | null; // Kept for state clarity, but not sent to API
+    userEmail: string | null;
 }
 
 const steps = [
@@ -70,17 +71,6 @@ const steps = [
     "Confirmation",
 ];
 
-// --------------------------------------------------
-// SIMPLE NAV MOCK (replace with React Navigation)
-// --------------------------------------------------
-const useNavigation = () => ({
-    navigate: (screen: string, params?: object) =>
-        console.log(`Maps → ${screen}`, params),
-});
-
-// --------------------------------------------------
-// AUTH HOOK (REAL JWT)
-// --------------------------------------------------
 const useAuth = () => {
     const [token, setToken] = useState<string | null>(null);
     const [email, setEmail] = useState<string | null>(null);
@@ -100,11 +90,8 @@ const useAuth = () => {
     return { token, email, loading };
 };
 
-// --------------------------------------------------
-// MAIN COMPONENT
-// --------------------------------------------------
 const BookService = () => {
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
     const { token, email, loading: authLoading } = useAuth();
 
     const [step, setStep] = useState(0);
@@ -118,7 +105,7 @@ const BookService = () => {
     const [serviceLoading, setServiceLoading] = useState(true);
 
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-    const [dataLoading, setDataLoading] = useState(false); // General data loading
+    const [dataLoading, setDataLoading] = useState(false);
 
     const [bookingData, setBookingData] = useState<BookingData>({
         vehicle: null,
@@ -131,7 +118,6 @@ const BookService = () => {
 
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // --- UTILITY/API MOCKS ---
     const updateBookingData = (key: keyof BookingData, value: any) => {
         setBookingData(prev => ({ ...prev, [key]: value }));
     };
@@ -142,26 +128,24 @@ const BookService = () => {
                 text: "OK",
                 onPress: async () => {
                     await AsyncStorage.multiRemove(["token", "email"]);
-                    navigation.navigate("SignInScreen");
+                    navigation.navigate("signin");
                 },
             },
         ]);
     }, [navigation]);
 
 
-    // --- FETCH TIME SLOTS (STEP 3 DATA) ---
     const fetchTimeSlots = useCallback(
         async (branchId: number, date: Date) => {
             if (!token) return;
 
             setDataLoading(true);
-            setTimeSlots([]); // reset previous slots
-            updateBookingData('timeSlot', null); // Clear selected time on date change
+            setTimeSlots([]);
+            updateBookingData('timeSlot', null);
 
             try {
-                const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD
+                const formattedDate = date.toISOString().split("T")[0];
 
-                // Note: branchId should ideally be part of the URL/query for a real system
                 const res = await fetch(
                     `${API_BASE_URL}/api/timeslots?branchId=${branchId}&date=${formattedDate}`,
                     {
@@ -182,7 +166,6 @@ const BookService = () => {
 
                 const data = await res.json();
 
-                // Weekend or no availability
                 if (!Array.isArray(data) || data.length === 0) {
                     setTimeSlots([]);
                     return;
@@ -203,10 +186,9 @@ const BookService = () => {
                 setDataLoading(false);
             }
         },
-        [token]
+        [token, handleAuthError]
     );
 
-    // --- STEP HANDLERS ---
     const handleNextStep = () => {
         setStep(prev => prev < steps.length - 1 ? prev + 1 : prev);
     };
@@ -217,7 +199,7 @@ const BookService = () => {
 
     const handleSelectBranch = (branch: Branch) => {
         updateBookingData('branch', branch);
-        updateBookingData('service', null); // Reset service selection when changing branch
+        updateBookingData('service', null);
         handleNextStep();
     };
 
@@ -227,7 +209,6 @@ const BookService = () => {
     };
 
     const handleDateChange = (event: any, selectedDate?: Date) => {
-        // Hide picker immediately on iOS or when a date is selected on Android
         if (Platform.OS === 'ios' || selectedDate) {
             setShowDatePicker(false);
         }
@@ -244,24 +225,17 @@ const BookService = () => {
                 return;
             }
 
-            // This update triggers the fetchTimeSlots useEffect
             updateBookingData("date", selectedDate); 
-            updateBookingData("timeSlot", null); // reset selected time
-            setTimeSlots([]); // clear old slots until new ones are fetched
+            updateBookingData("timeSlot", null);
+            setTimeSlots([]);
         }
     };
 
     const handleSelectTimeSlot = (time: string) => {
         updateBookingData('timeSlot', time);
-        // Note: We don't call handleNextStep here, user stays on the screen 
-        // until they hit 'Confirm & Book'
     };
 
-    /**
-     * ✅ FIX: Corrected API submission logic and payload mapping.
-     */
     const handleSubmitBooking = async () => {
-        // 1. Validation Check 
         if (!bookingData.vehicle || !bookingData.branch || !bookingData.service || !bookingData.date || !bookingData.timeSlot || !token) {
             Alert.alert("Missing Information", "Please complete all steps and ensure you are logged in before confirming.");
             return;
@@ -269,21 +243,17 @@ const BookService = () => {
 
         setDataLoading(true);
         
-        // 2. Prepare Data for API (MAPPING TO BACKEND NAMES)
         const submissionData = {
             vehicleId: bookingData.vehicle.id,
             serviceTypeId: bookingData.service.id, 
             branchId: bookingData.branch.id,
             
-            // Format date to YYYY-MM-DD string as expected by the backend
             appointmentDate: bookingData.date.toISOString().split("T")[0], 
             
-            // Time slot string (e.g., "09:00")
             appointmentTime: bookingData.timeSlot,
         };
 
         try {
-            // 3. API Call
             const res = await fetch(`${API_BASE_URL}/api/bookings`, {
                 method: "POST",
                 headers: {
@@ -293,25 +263,21 @@ const BookService = () => {
                 body: JSON.stringify(submissionData),
             });
 
-            // 4. Handle Authentication Errors
             if (res.status === 401 || res.status === 403) {
                 handleAuthError();
                 return;
             }
 
-            // 5. Handle General HTTP Errors 
             if (!res.ok) {
                 const errorBody = await res.json().catch(() => ({})); 
                 throw new Error(errorBody.message || `Booking failed with status: ${res.status}`);
             }
 
-            // 6. Success (Backend returns status 201)
             const successResponse = await res.json();
             Alert.alert("Success", successResponse.message || "Your appointment has been successfully scheduled.");
-            setStep(4); // Move to final confirmation screen
+            setStep(4);
 
         } catch (err) {
-            // 7. Handle Errors
             console.error("Error submitting booking:", err);
             Alert.alert("Booking Failed", (err as Error).message);
         } finally {
@@ -320,7 +286,6 @@ const BookService = () => {
     };
 
 
-    // 1. Fetch Branch Data
     useEffect(() => {
         const fetchBranches = async () => { 
             setBranchLoading(true);
@@ -351,9 +316,8 @@ const BookService = () => {
         if (!authLoading) {
             fetchBranches();
         }
-    }, [token, authLoading]);
+    }, [token, authLoading, handleAuthError]);
 
-// 2. Fetch Service Type Data
     useEffect(() => {
         const fetchServiceTypes = async () => {
             setServiceLoading(true);
@@ -374,7 +338,6 @@ const BookService = () => {
                 }
                 const data = await res.json();
                 
-                // FIX: Map the data and convert 'cost' to a number
                 const parsedServices = data.map((s: any) => ({
                     ...s,
                     cost: parseFloat(s.cost), 
@@ -392,10 +355,9 @@ const BookService = () => {
         if (!authLoading) {
             fetchServiceTypes();
         }
-    }, [token, authLoading]);
+    }, [token, authLoading, handleAuthError]);
 
 
-    // 0. Fetch Vehicle Data
     useEffect(() => {
         const fetchVehicles = async () => {
             setVehicleLoading(true);
@@ -437,9 +399,8 @@ const BookService = () => {
         if (!authLoading) {
             fetchVehicles();
         }
-    }, [token, authLoading]);
+    }, [token, authLoading, handleAuthError]);
 
-    // Trigger time slot fetch when branch or date changes on step 3
     useEffect(() => {
         if (step === 3 && bookingData.branch && bookingData.date) {
             fetchTimeSlots(bookingData.branch.id, bookingData.date);
@@ -447,7 +408,6 @@ const BookService = () => {
     }, [step, bookingData.branch, bookingData.date, fetchTimeSlots]);
 
 
-    // --- STEP RENDER FUNCTIONS ---
     const renderStep0Vehicle = () => {
         if (vehicleLoading) {
             return (
@@ -471,7 +431,7 @@ const BookService = () => {
                     </Text>
                     <TouchableOpacity
                         style={styles.primaryButton}
-                        onPress={() => navigation.navigate("AddVehicleScreen")}
+                        onPress={() => navigation.navigate("addVehicle")}
                     >
                         <Text style={styles.addButtonText}>Add Vehicle</Text>
                     </TouchableOpacity>
@@ -511,7 +471,6 @@ const BookService = () => {
                         </Text>
                     </TouchableOpacity>
                 ))}
-                {/* Manual Navigation */}
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity
                         style={bookingData.vehicle ? styles.primaryButton : styles.disabledButton}
@@ -568,7 +527,6 @@ const BookService = () => {
     };
 
     const renderStep2Service = () => {
-        // 1. Loading Check
         if (serviceLoading) {
             return (
                 <View style={styles.center}>
@@ -578,7 +536,6 @@ const BookService = () => {
             );
         }
 
-        // 2. Empty Data/Error Check
         if (!services || services.length === 0) {
             return (
                 <View style={styles.center}>
@@ -588,7 +545,6 @@ const BookService = () => {
             );
         }
 
-        // 3. Render Data 
         return (
             <ScrollView style={styles.contentArea}>
                 <Text style={styles.selectionTitle}>Branch: {bookingData.branch?.name}</Text>
@@ -632,9 +588,6 @@ const BookService = () => {
         );
     };
 
-    /**
-     * ✅ FIX: Added loading state management to the Confirm & Book button.
-     */
     const renderStep3DateTime = () => {
         const selectedDateText = bookingData.date
             ? bookingData.date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
@@ -644,7 +597,6 @@ const BookService = () => {
             <View style={styles.contentArea}>
                 <Text style={styles.selectionTitle}>Service: {bookingData.service?.label}</Text>
 
-                {/* Date Picker Section */}
                 <Text style={styles.label}>1. Choose Date</Text>
                 <TouchableOpacity
                     style={styles.inputField}
@@ -654,7 +606,6 @@ const BookService = () => {
                     <MaterialIcons name="calendar-today" size={20} color={PRIMARY_COLOR} />
                 </TouchableOpacity>
 
-                {/* --- DATE TIME PICKER --- */}
                 {showDatePicker && (
                     <DateTimePicker
                         value={bookingData.date || new Date()}
@@ -664,12 +615,9 @@ const BookService = () => {
                         minimumDate={new Date()}
                     />
                 )}
-                {/* --- END DATE TIME PICKER --- */}
 
-                {/* Time Slot Section */}
                 <Text style={styles.label}>2. Select Time Slot (Duration: {bookingData.service?.durationMinutes} min)</Text>
 
-                {/* Show spinner when fetching slots */}
                 {dataLoading && !bookingData.timeSlot && <ActivityIndicator size="small" color={PRIMARY_COLOR} style={{ marginTop: 10 }} />}
 
                 {bookingData.date && !dataLoading && (
@@ -694,24 +642,20 @@ const BookService = () => {
                         )}
                     </View>
                 )}
-                 {/* Navigation Buttons */}
-                <View style={styles.buttonContainerRow}>
+                   <View style={styles.buttonContainerRow}>
                     <TouchableOpacity style={styles.secondaryButtonHalf} onPress={handlePrevStep}>
                         <Text style={styles.secondaryButtonText}>Back</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        // Style reflects loading state
                         style={
                             (bookingData.date && bookingData.timeSlot && !dataLoading) 
                                 ? styles.primaryButtonHalf 
                                 : styles.disabledButtonHalf
                         }
                         onPress={handleSubmitBooking}
-                        // Disabled if required fields are missing OR data is loading (submitting)
                         disabled={!(bookingData.date && bookingData.timeSlot) || dataLoading}
                     >
-                         {/* Conditional rendering for loading spinner */}
-                         {dataLoading ? (
+                        {dataLoading ? (
                             <ActivityIndicator color={WHITE_TEXT} />
                         ) : (
                             <Text style={styles.addButtonText}>Confirm & Book</Text>
@@ -758,8 +702,7 @@ const renderStep4Confirmation = () => {
 
                 <TouchableOpacity
                     style={[styles.primaryButton, { marginTop: 30 }]}
-                    // FIX: Changed navigation target to "Dashboard" or similar main screen
-                    onPress={() => navigation.navigate("dashboard")} 
+                    onPress={() => navigation.navigate("dashboard")}
                 >
                     <Text style={styles.addButtonText}>Done</Text>
                 </TouchableOpacity>
@@ -767,9 +710,6 @@ const renderStep4Confirmation = () => {
         );
     };
 
-    // --------------------------------------------------
-    // MASTER STEP RENDER
-    // --------------------------------------------------
     const renderStep = () => {
         if (vehicleLoading || authLoading || branchesLoading || serviceLoading) {
             return (
@@ -791,30 +731,27 @@ const renderStep4Confirmation = () => {
         }
 
         switch (step) {
-            case 0: // Select Vehicle
+            case 0:
                 return renderStep0Vehicle();
-            case 1: // Choose Branch
+            case 1:
                 return renderStep1Branch();
-            case 2: // Select Service
+            case 2:
                 if (!bookingData.vehicle) return <View style={styles.center}><Text style={styles.errorText}>Please select a vehicle first.</Text></View>;
                 return renderStep2Service();
-            case 3: // Select Date & Time
+            case 3:
                 if (!bookingData.branch || !bookingData.service) return <View style={styles.center}><Text style={styles.errorText}>Please select branch and service first.</Text></View>;
                 return renderStep3DateTime();
-            case 4: // Confirmation
+            case 4:
                 return renderStep4Confirmation();
             default:
                 return null;
         }
     };
 
-    // --------------------------------------------------
-    // RENDER MAIN STRUCTURE
-    // --------------------------------------------------
     return (
         <SafeAreaView style={styles.container}>
             <Text style={styles.header}>Book Service</Text>
-
+        
             <View style={styles.stepper}>
                 {steps.map((_, i) => (
                     <View
@@ -835,110 +772,78 @@ const renderStep4Confirmation = () => {
 };
 
 
-
-export default BookService;
-
-// --------------------------------------------------
-// STYLES (Expanded)
-// --------------------------------------------------
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: BACKGROUND_COLOR,
-        paddingHorizontal: 16,
+        paddingHorizontal: 20,
     },
+
+
+    
     header: {
-        color: "#fff",
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: "bold",
-        marginBottom: 10,
-        paddingTop: 10,
+        color: WHITE_TEXT,
+        marginBottom: 20,
+        marginTop: Platform.OS === 'android' ? 10 : 0,
     },
     stepper: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 6,
+        marginBottom: 15,
+        paddingHorizontal: 10,
     },
     dot: {
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: "rgba(255,255,255,0.3)",
-        flex: 1, // Make dots expand to fill space
-        marginHorizontal: 4,
+        backgroundColor: SECONDARY_TEXT,
     },
     dotActive: {
         backgroundColor: PRIMARY_COLOR,
     },
     stepLabel: {
-        textAlign: "center",
-        color: PRIMARY_COLOR,
-        marginBottom: 20,
-        fontWeight: "bold",
-        fontSize: 16,
-    },
-    center: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-    },
-    text: {
-        color: "#fff",
-        marginTop: 10,
-        textAlign: "center",
-        fontSize: 16,
-    },
-    errorText: {
-        color: '#ff4444',
-        fontWeight: 'bold',
         fontSize: 18,
+        color: PRIMARY_COLOR,
+        fontWeight: "600",
+        marginBottom: 10,
     },
     contentArea: {
         flex: 1,
-        // Using paddingBottom with ScrollView requires contentContainerStyle, 
-        // but for a single-page view, this is fine.
-        paddingBottom: 20,
+        paddingHorizontal: 0,
     },
-    selectionTitle: {
-        color: PRIMARY_COLOR,
-        fontSize: 14,
-        fontWeight: '600',
-        marginBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: CARD_BG,
-        paddingBottom: 5,
+    center: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
     },
-    // --- Card Styles (Step 0) ---
+    text: {
+        color: SECONDARY_TEXT,
+        fontSize: 16,
+        marginTop: 10,
+    },
+    errorText: {
+        color: 'red',
+        fontSize: 16,
+        marginTop: 10,
+    },
     grid: {
         flexDirection: "row",
         flexWrap: "wrap",
         justifyContent: "space-between",
-        paddingBottom: 50,
     },
     card: {
         width: "48%",
         backgroundColor: CARD_BG,
-        padding: 12,
+        padding: 15,
         borderRadius: 10,
-        marginBottom: 12,
+        marginBottom: 15,
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.1)",
+        borderColor: "transparent",
+        justifyContent: 'space-between',
+        minHeight: 150,
     },
-    cardSelected: {
-        borderColor: PRIMARY_COLOR,
-        backgroundColor: "rgba(0,188,212,0.2)",
-    },
-    cardTitle: {
-        color: "#fff",
-        fontWeight: "bold",
-        marginTop: 6,
-    },
-    cardText: {
-        color: "rgba(255,255,255,0.7)",
-        fontSize: 12,
-    },
-    // --- Full Card Styles (Step 1, 2) ---
     cardFull: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -947,180 +852,224 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginBottom: 10,
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.1)",
+        borderColor: "transparent",
     },
-    branchIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: PRIMARY_COLOR,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    // --- Step 3: Date/Time ---
-    label: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginTop: 15,
-        marginBottom: 8,
-    },
-    inputField: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: CARD_BG,
-        padding: 15,
-        borderRadius: 8,
-        borderWidth: 1,
+    cardSelected: {
         borderColor: PRIMARY_COLOR,
+        backgroundColor: "rgba(0, 188, 212, 0.1)",
     },
-    inputText: {
-        color: '#fff',
+    cardTitle: {
+        color: WHITE_TEXT,
         fontSize: 16,
+        fontWeight: "bold",
+        marginBottom: 5,
     },
-    timeGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'flex-start',
-        marginTop: 10,
-    },
-    timeCard: {
-        backgroundColor: CARD_BG,
-        padding: 10,
-        borderRadius: 6,
-        marginRight: 10,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
-    },
-    timeCardSelected: {
-        backgroundColor: PRIMARY_COLOR,
-        borderColor: PRIMARY_COLOR,
-    },
-    timeCardUnavailable: {
-        backgroundColor: 'rgba(255, 0, 0, 0.1)',
-        borderColor: 'rgba(255, 0, 0, 0.3)',
-        opacity: 0.6,
-    },
-    timeText: {
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-    // --- Step 4: Confirmation ---
-    confirmationBox: {
-        alignItems: 'center',
-        padding: 30,
-        backgroundColor: CARD_BG,
-        borderRadius: 15,
-        marginBottom: 20,
-    },
-    confirmationTitle: {
-        color: PRIMARY_COLOR,
-        fontSize: 22,
-        fontWeight: 'bold',
-        marginTop: 15,
-    },
-    confirmationText: {
-        color: 'rgba(255,255,255,0.8)',
-        textAlign: 'center',
-    },
-    summaryHeader: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 10,
-        marginBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: PRIMARY_COLOR,
-        paddingBottom: 5,
-    },
-    summaryItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)',
-    },
-    summaryLabel: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 16,
-    },
-    summaryValue: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 16,
-        maxWidth: '60%',
-        textAlign: 'right',
-    },
-    // --- Buttons ---
-    buttonContainer: {
-        marginTop: 20,
-        alignItems: 'center',
-    },
-    buttonContainerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 20,
+    cardText: {
+        color: SECONDARY_TEXT,
+        fontSize: 14,
     },
     primaryButton: {
         backgroundColor: PRIMARY_COLOR,
         padding: 15,
         borderRadius: 8,
+        alignItems: "center",
+        marginTop: 20,
         width: '100%',
-        alignItems: 'center',
-        marginTop: 10,
     },
     primaryButtonHalf: {
         backgroundColor: PRIMARY_COLOR,
         padding: 15,
         borderRadius: 8,
-        width: '48%',
-        alignItems: 'center',
-    },
-    secondaryButton: {
-        backgroundColor: 'transparent',
-        padding: 15,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
-        width: '100%',
-        alignItems: 'center',
-        marginTop: 10,
-    },
-    secondaryButtonHalf: {
-        backgroundColor: 'transparent',
-        padding: 15,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
-        width: '48%',
-        alignItems: 'center',
+        alignItems: "center",
+        flex: 1,
+        marginLeft: 10,
     },
     disabledButton: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: DISABLED_COLOR,
         padding: 15,
         borderRadius: 8,
+        alignItems: "center",
+        marginTop: 20,
         width: '100%',
-        alignItems: 'center',
-        marginTop: 10,
     },
     disabledButtonHalf: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: DISABLED_COLOR,
         padding: 15,
         borderRadius: 8,
-        width: '48%',
-        alignItems: 'center',
+        alignItems: "center",
+        flex: 1,
+        marginLeft: 10,
     },
     addButtonText: {
-        color: BACKGROUND_COLOR, // Dark text on primary button
-        fontWeight: 'bold',
+        color: WHITE_TEXT,
         fontSize: 16,
+        fontWeight: "bold",
+    },
+    secondaryButton: {
+        borderColor: PRIMARY_COLOR,
+        borderWidth: 1,
+        padding: 15,
+        borderRadius: 8,
+        alignItems: "center",
+        marginTop: 20,
+        width: '100%',
+    },
+    secondaryButtonHalf: {
+        borderColor: PRIMARY_COLOR,
+        borderWidth: 1,
+        padding: 15,
+        borderRadius: 8,
+        alignItems: "center",
+        flex: 1,
+        marginRight: 10,
     },
     secondaryButtonText: {
         color: PRIMARY_COLOR,
-        fontWeight: 'bold',
         fontSize: 16,
+        fontWeight: "bold",
+    },
+    buttonContainer: {
+        width: '100%',
+        marginTop: 20,
+    },
+    buttonContainerRow: {
+        flexDirection: 'row',
+        marginTop: 20,
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    branchIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(0,188,212,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 15,
+    },
+    selectionTitle: {
+        color: SECONDARY_TEXT,
+        fontSize: 14,
+        marginBottom: 15,
+        textAlign: 'center',
+        paddingVertical: 10,
+        backgroundColor: CARD_BG,
+        borderRadius: 8,
+    },
+    label: {
+        color: WHITE_TEXT,
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginTop: 15,
+        marginBottom: 10,
+    },
+    inputField: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 15,
+        backgroundColor: CARD_BG,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: PRIMARY_COLOR,
+    },
+    inputText: {
+        color: WHITE_TEXT,
+        fontSize: 16,
+    },
+    timeGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        marginTop: 10,
+    },
+    timeCard: {
+        width: '31%',
+        padding: 12,
+        backgroundColor: CARD_BG,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    timeCardSelected: {
+        borderColor: PRIMARY_COLOR,
+        backgroundColor: "rgba(0, 188, 212, 0.2)",
+    },
+    timeCardUnavailable: {
+        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+        opacity: 0.5,
+        borderColor: 'transparent',
+    },
+    timeText: {
+        color: WHITE_TEXT,
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    confirmationBox: {
+        alignItems: 'center',
+        padding: 30,
+        backgroundColor: CARD_BG,
+        borderRadius: 10,
+        marginBottom: 20,
+        marginTop: 20,
+    },
+    confirmationTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: PRIMARY_COLOR,
+        marginTop: 15,
+        marginBottom: 10,
+    },
+    confirmationText: {
+        color: SECONDARY_TEXT,
+        textAlign: 'center',
+        fontSize: 16,
+    },
+    summaryHeader: {
+        fontSize: 20,
+        color: WHITE_TEXT,
+        fontWeight: 'bold',
+        marginBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: SECONDARY_TEXT,
+        paddingBottom: 5,
+    },
+    summaryItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: CARD_BG,
+    },
+      // Chip
+  chip: {
+    borderRadius: 15,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+    borderColor: PRIMARY_COLOR,
+    borderWidth: 1,
+  },
+  chipText: {
+    color: PRIMARY_COLOR,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
+    summaryLabel: {
+        color: SECONDARY_TEXT,
+        fontSize: 16,
+    },
+    summaryValue: {
+        color: WHITE_TEXT,
+        fontSize: 16,
+        fontWeight: '500',
+        maxWidth: '70%',
+        textAlign: 'right',
     }
 });
+
+
+export default BookService;

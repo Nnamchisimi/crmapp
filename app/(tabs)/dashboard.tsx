@@ -286,6 +286,11 @@ const Dashboard: React.FC = () => {
     { text: "Booking", icon: "calendar-month", path: "/bookings" },
     { text: "Sign Out", icon: "exit-to-app", path: "/signin" },
   ];
+const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ label, color, style }) => (
+  <View style={[styles.chip, { backgroundColor: color }, style]}>
+    <Text style={styles.chipText}>{label}</Text>
+  </View>
+);
 
   // Drawer Content
   const DrawerContent = (
@@ -325,8 +330,16 @@ const Dashboard: React.FC = () => {
       {/* Main Scrollable Content */}
       <ScrollView contentContainerStyle={styles.mainContent}>
         <View style={styles.userInfoContainer}>
-          <CustomChip label={userEmail || 'Loading...'} color={PRIMARY_COLOR} />
+       
         </View>
+
+          <View style={styles.userInfoContainer}>
+                  <CustomChip 
+                    label={userEmail || 'Loading...'} 
+                    color={CARD_BG} 
+                    style={{ borderColor: PRIMARY_COLOR, borderWidth: 1 }} 
+                  />
+                </View>
 
         <Text style={styles.subTitle}>
           Manage your vehicles and track maintenance schedules
