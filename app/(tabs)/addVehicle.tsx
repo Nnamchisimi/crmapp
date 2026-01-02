@@ -13,9 +13,9 @@ import {
     TextStyle
 } from "react-native";
 import { useRouter, Link } from "expo-router";
-// Ensure you have run: expo install @react-native-picker/picker
+
 import { Picker } from "@react-native-picker/picker";
-// Ensure you have run: expo install @expo/vector-icons
+
 import { MaterialIcons, AntDesign } from '@expo/vector-icons';
 
 // --- TYPE DEFINITIONS ---
@@ -28,13 +28,13 @@ type FormFieldChangeHandler = (e: { target: { name: keyof VehicleFormData, value
 
 interface FormFieldProps {
     label: string;
-    // We now use keyof VehicleFormData for the name prop, which is compatible
+
     name: keyof VehicleFormData; 
     value: string;
     // The onChange prop now uses the strongly typed handler
     onChange: FormFieldChangeHandler; 
     error?: string;
-    // The keyboardType prop now ONLY accepts the defined literals, which is correct
+ 
     keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address'; 
     selectOptions?: SelectOption[];
     disabled?: boolean;
@@ -65,7 +65,7 @@ interface SidebarItem {
     action?: () => void;
 }
 
-// --- MOCK UI COMPONENTS (Using explicit types for style props) ---
+// --- MOCK UI COMPONENTS 
 
 const Box: React.FC<{ children: React.ReactNode, style?: StyleProp<ViewStyle> }> = ({ children, style }) => (
     <View style={style}>{children}</View>
@@ -83,7 +83,7 @@ const Divider: React.FC<{ style?: StyleProp<ViewStyle> }> = ({ style }) => (
     <View style={style} />
 );
 
-// FormField component is where the original error occurred.
+
 const FormField: React.FC<FormFieldProps> = ({ 
     label, 
     name, 
@@ -95,7 +95,7 @@ const FormField: React.FC<FormFieldProps> = ({
     disabled = false, 
     isSelect = false 
 }) => {
-    // Correctly typed handler for Picker/TextInput onChange
+
     const onChangeHandler = (newValue: string) => {
         onChange({ target: { name, value: newValue } });
     };
@@ -113,7 +113,7 @@ const FormField: React.FC<FormFieldProps> = ({
                         dropdownIconColor="#ccc" 
                     >
                         <Picker.Item label={`Select ${label}`} value="" style={{ color: '#888' }} />
-                        {/* THE ERROR IS RESOLVED because selectOptions is typed as SelectOption[] */}
+                     
                         {selectOptions.map((option) => (
                             <Picker.Item 
                                 key={option.value || option.label} 
@@ -148,7 +148,7 @@ const BrandLogo: React.FC<{ brand: string, size: number, showName: boolean }> = 
 const getBrandLogo = (brand: string, size: number) => <AntDesign name="car" size={18} color="#00bcd4" style={{ marginRight: 8 }} />;
 const getBrandDisplayName = (brand: string) => brand;
 
-// --- CAR MODELS (Remains the same structure) ---
+// --- CAR MODELS
 const carModels: { [key: string]: string[] } = {
     "Chrysler": ["300 C", "300 M", "Concorde", "Crossfire", "LHS", "Neon", "PT Cruiser", "Sebring", "Stratus"],
     "Audi": [

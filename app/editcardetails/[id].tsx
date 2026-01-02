@@ -244,7 +244,7 @@ const EditCarDetailsScreen = () => {
         if (yearValue > currentYear || yearValue < 1900 || isNaN(yearValue)) {
             newErrors.year = `Year must be between 1900 and ${currentYear}.`;
         }
-        // Add more validation rules here (e.g., license_plate presence)
+
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -272,7 +272,7 @@ const EditCarDetailsScreen = () => {
 
             if (response.ok) {
                 Alert.alert("Success", "Vehicle updated successfully!");
-                // Optionally update the parent screen or just navigate back
+              
                 router.back(); 
             } else {
                 Alert.alert("Update Failed", result.message || "Unknown error occurred.");
@@ -285,8 +285,7 @@ const EditCarDetailsScreen = () => {
         }
     };
     
-    // --- Render States ---
-
+    //  Render States
     if (loading) {
         return (
             <View style={[styles.container, styles.center]}>
@@ -304,7 +303,6 @@ const EditCarDetailsScreen = () => {
         );
     }
 
-    // --- Main Form Render ---
 
     return (
         <View style={styles.container}>

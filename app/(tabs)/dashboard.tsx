@@ -18,7 +18,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 // --- TYPESCRIPT INTERFACES ---
 
 /**
- * Define the structure of a Vehicle object returned from the API.
+structure of a Vehicle object returned from the API.
  */
 interface Vehicle {
   id: string;
@@ -34,7 +34,7 @@ interface Vehicle {
 }
 
 /**
- * Define the structure of a Campaign object returned from the API.
+structure of a Campaign object returned from the API.
  */
 interface Campaign {
   id: string;
@@ -45,9 +45,6 @@ interface Campaign {
   validUntil: string; // Date string
   bookedByUser: boolean; // Added locally after fetching
 }
-
-
-
 
 
 // --- CONSTANTS & PLACEHOLDERS ---
@@ -61,14 +58,14 @@ const SUBTLE_TEXT_COLOR = 'rgba(255,255,255,0.7)';
 const { width: screenWidth } = Dimensions.get('window');
 const DRAWER_WIDTH = screenWidth * 0.7; 
 
-// IMPORTANT: Replace 'http://localhost:3007' with your actual local IP address (e.g., 'http://192.168.1.5:3007')
+
 const BASE_URL = "http://192.168.55.73:3007"; // or tunnel URL
 
 // Placeholder component for BrandLogo
 const BrandLogo: React.FC<{ brand: string, size: 'lg' | 'sm', showName: boolean }> = ({ brand, size }) => (
   <View style={styles.brandLogoContainer}>
     <Ionicons name="car-sport" size={size === 'lg' ? 30 : 20} color={PRIMARY_COLOR} />
-    {/* Optional: Add a simple text label if the logo image is missing */}
+ 
   </View>
 );
 
@@ -85,7 +82,6 @@ const Dashboard: React.FC = () => {
   
   // Helper to convert web paths to RN navigation calls
   const navigate = useCallback((path: string) => {
-    // This logic handles your original web paths and maps them to React Navigation calls
     if (path === '/signin') return router.replace('/signin');
     if (path === '/addVehicle') return router.push('/addVehicle');
     if (path === '/campaigns') return router.push('/campaigns');
@@ -98,9 +94,9 @@ const Dashboard: React.FC = () => {
           params:{id},
         });
     }
-    // Handle other exact matches
+
     if (path === '/dashboard') return router.push('/dashboard');
-    if (path === '/') return router.push('/dashboard'); // Assuming Home goes to dashboard
+    if (path === '/') return router.push('/dashboard')
     
     console.warn(`Navigation path not handled: ${path}`);
   }, []);
@@ -174,7 +170,6 @@ const Dashboard: React.FC = () => {
     return count;
   }, [activeCampaigns]);
 
-  // Stats calculation
   const stats = [
     { title: "Total Vehicles", value: vehicles.length },
     { title: "Upcoming Bookings", value: getClosestDateCount() },
@@ -232,7 +227,7 @@ const Dashboard: React.FC = () => {
         }
 
         const data: Campaign[] = await res.json();
-        // Ensure bookedByUser is correctly set
+   
         const mapped = data.map((c: any) => ({ ...c, bookedByUser: !!c.bookedByUser })) as Campaign[]; 
         setActiveCampaigns(mapped.filter((c) => c.bookedByUser));
         setAllCampaigns(mapped.filter((c) => !c.bookedByUser));
@@ -307,7 +302,7 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
               closeDrawer();
             }}
           >
-            {/* Type casting for icon names is required by TypeScript for MaterialIcons */}
+
             <MaterialIcons name={item.icon as any} size={24} color="#ccc" />
             <Text style={styles.drawerItemText}>{item.text}</Text>
           </TouchableOpacity>
@@ -319,7 +314,7 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
 
   return (
     <View style={styles.appContainer}>
-      {/* Header Bar and Mobile Menu Button */}
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Dashboard</Text>
         <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
@@ -554,7 +549,7 @@ const styles = StyleSheet.create({
 
   // Vehicles
   vehicleList: {
-    flexDirection: 'column', // Changed to column for simple mobile list view
+    flexDirection: 'column', 
   },
   vehicleCard: {
     width: '100%', 

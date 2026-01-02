@@ -18,16 +18,16 @@ import Constants from "expo-constants";
 
 WebBrowser.maybeCompleteAuthSession();
 
-// ----------------------
+
 // Config
-// ----------------------
+
 const BASE_URL = "http://192.168.55.73:3007"; // or tunnel URL
 
 
 const GOOGLE_WEB_CLIENT_ID =
   "1077024630815-irm5k01nll1ng6begm467k29fvdfhr5h.apps.googleusercontent.com";
 
-// You can leave these empty for now
+
 const GOOGLE_ANDROID_CLIENT_ID = undefined;
 const GOOGLE_IOS_CLIENT_ID = undefined;
 
@@ -42,9 +42,9 @@ interface SignInResponse {
 }
 
 export default function SignIn() {
-  // ----------------------
+
   // State
-  // ----------------------
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,9 +70,9 @@ export default function SignIn() {
     }
   }, [response]);
 */
-  // ----------------------
+
   // Email / Password Login
-  // ----------------------
+
   const handleSignIn = async () => {
     if (!email || !password) {
       Alert.alert("Missing fields", "Please enter email and password");
@@ -111,9 +111,8 @@ export default function SignIn() {
     }
   };
 
-  // ----------------------
   // Google Login → Backend
-  // ----------------------
+
   const handleGoogleLogin = async (idToken: string) => {
     try {
       const res = await fetch(`${BASE_URL}/api/auth/google`, {
@@ -141,9 +140,9 @@ export default function SignIn() {
     }
   };
 
-  // ----------------------
+
   // UI
-  // ----------------------
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -203,9 +202,9 @@ export default function SignIn() {
   );
 }
 
-// ----------------------
+
 // Styles
-// ----------------------
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
