@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Animated,
+  SafeAreaView,
 } from 'react-native';
 // AsyncStorage replaces web's localStorage
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
@@ -88,6 +89,7 @@ const CampaignsPage: React.FC<CampaignsProps> = ({ navigation }) => {
     if (path === '/campaigns') return router.push('/campaigns');
         if (path === '/bookings') return router.push('/bookings');
     if (path === '/notifications') return router.push('/notifications');
+     if (path === '/newsletter') return router.push('/newsletter');
     if (path.startsWith('/vehicles/')) {
         const id = path.split('/')[2];
         return router.push({
@@ -289,7 +291,7 @@ const CampaignsPage: React.FC<CampaignsProps> = ({ navigation }) => {
   // --- RENDER ---
   return (
     <View style={styles.appContainer}>
-      {/* Header Bar and Mobile Menu Button */}
+   <SafeAreaView style={styles.mainWrapper}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Service Campaigns</Text>
         <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
@@ -366,6 +368,7 @@ const CampaignsPage: React.FC<CampaignsProps> = ({ navigation }) => {
           ))}
         </View>
       </ScrollView>
+      </SafeAreaView>
 
       {/* Custom Animated Drawer and Overlay */}
       {mobileOpen && (
@@ -391,6 +394,10 @@ const CampaignsPage: React.FC<CampaignsProps> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   appContainer: {
+    flex: 1,
+    backgroundColor: BACKGROUND_COLOR,
+  },
+     mainWrapper: {
     flex: 1,
     backgroundColor: BACKGROUND_COLOR,
   },

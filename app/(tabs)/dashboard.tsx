@@ -10,16 +10,13 @@ import {
   Alert,
   Platform,
   Animated,
+  SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons'; 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-// --- TYPESCRIPT INTERFACES ---
 
-/**
-structure of a Vehicle object returned from the API.
- */
 interface Vehicle {
   id: string;
   brand: string;
@@ -87,6 +84,7 @@ const Dashboard: React.FC = () => {
     if (path === '/campaigns') return router.push('/campaigns');
         if (path === '/bookings') return router.push('/bookings');
     if (path === '/notifications') return router.push('/notifications');
+    if (path === '/newsletter') return router.push('/newsletter');
     if (path.startsWith('/vehicles/')) {
         const id = path.split('/')[2];
         return router.push({
@@ -315,6 +313,8 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
   return (
     <View style={styles.appContainer}>
 
+      
+<SafeAreaView style={styles.mainWrapper}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Dashboard</Text>
         <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
@@ -430,6 +430,7 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
 
         <View style={{ height: 50 }} />
       </ScrollView>
+      </SafeAreaView>
 
       {/* Custom Animated Drawer */}
       {mobileOpen && (
@@ -456,6 +457,10 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
 // --- STYLESHEET ---
 const styles = StyleSheet.create({
   appContainer: {
+    flex: 1,
+    backgroundColor: BACKGROUND_COLOR,
+  },
+    mainWrapper: {
     flex: 1,
     backgroundColor: BACKGROUND_COLOR,
   },
