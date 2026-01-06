@@ -72,7 +72,7 @@ export const SignUpScreen: React.FC = () => {
             const data = await res.json();
 
             if (res.ok && data.success) {
-                console.log("✅ Signup successful!");
+                console.log(" Signup successful!");
                 console.log("Generated CRM Number:", data.crm_number);
 
                 // Store CRM number locally
@@ -84,7 +84,7 @@ export const SignUpScreen: React.FC = () => {
                 );
                 navigation.navigate("signin");
             } else {
-                console.error("❌ Signup failed:", data.error || data.message);
+                console.error("Signup failed:", data.error || data.message);
                 showAlert(
                     "Signup Failed",
                     data.error || data.message || "An unknown error occurred."
