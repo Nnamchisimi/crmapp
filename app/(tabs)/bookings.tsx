@@ -40,7 +40,7 @@ interface Vehicle {
 interface Branch {
     id: number;
     name: string;
-    address: string;
+ 
 }
 interface Service {
     id: number;
@@ -569,7 +569,6 @@ const BookService = () => {
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.cardTitle}>{b.name}</Text>
-                            <Text style={styles.cardText}>{b.address}</Text>
                         </View>
                         {bookingData.branch?.id === b.id && <MaterialIcons name="check" size={24} color={PRIMARY_COLOR} />}
                     </TouchableOpacity>
@@ -785,7 +784,7 @@ const BookService = () => {
                 </View>
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Branch:</Text>
-                    <Text style={styles.summaryValue}>{branch?.name} ({branch?.address})</Text>
+                    <Text style={styles.summaryValue}>{branch?.name} </Text>
                 </View>
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Service:</Text>

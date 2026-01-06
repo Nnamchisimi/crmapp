@@ -256,7 +256,7 @@ const Newsletter: React.FC = () => {
                     />
                 </View>
 
-                <Text style={styles.title}>Discount Newsletter</Text>
+                
                 <Text style={styles.subtitle}>
                   Subscribe to receive exclusive service discounts, maintenance tips, and special offers.
                 </Text>

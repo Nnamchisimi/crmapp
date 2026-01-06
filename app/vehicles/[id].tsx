@@ -8,14 +8,14 @@ import {
     Alert,
     TouchableOpacity,
 } from 'react-native';
-// **KEY IMPORTS for Expo Router Dynamic Routing**
-import { useLocalSearchParams, useRouter } from 'expo-router'; // useRouter is correctly used
+
+import { useLocalSearchParams, useRouter } from 'expo-router'; 
 import AsyncStorage from "@react-native-async-storage/async-storage"; 
 import { MaterialIcons } from '@expo/vector-icons'; 
 
-// --- CONSTANTS & CONFIGURATION ---
 
-const BASE_URL = "http://192.168.55.73:3007"; // Your server URL
+
+const BASE_URL = "http://192.168.55.73:3007";
 const PRIMARY_COLOR = '#00bcd4';
 const BACKGROUND_COLOR = '#000';
 const CARD_BG = 'rgba(255,255,255,0.05)';
@@ -24,11 +24,6 @@ const BORDER_COLOR = 'rgba(255,255,255,0.1)';
 const SUBTLE_TEXT_COLOR = 'rgba(255,255,255,0.7)';
 
 
-// --- TYPE DEFINITIONS ---
-
-// 🛑 REMOVED: The misplaced 'navigate' function definition.
-
-// IMPORTANT: Ensure this interface includes ALL fields returned by your API for /api/vehicles/:id
 interface VehicleData {
     id: string;
     brand: string;
@@ -41,34 +36,32 @@ interface VehicleData {
     vin: string;
     crm_number: string;
     
-    // Customer/Owner Details (Assuming they are returned here)
+    
     name: string; 
     surname: string;
     phone_number: string;
     email: string;
 
-    // Maintenance/History Details
     last_service_date: string;
     notes: string;
-    // Add other relevant fields like last_repair_date, next_inspection_date, etc.
+    
 }
 
 
-// --- MAIN COMPONENT ---
+
 const CarDetailsScreen = () => {
-    // 1. Get the ID from the URL/route parameters
+
     const params = useLocalSearchParams();
     const vehicleId = params.id;
-    const router = useRouter(); // To handle back navigation and custom navigation
+    const router = useRouter(); 
 
-    // Ensure ID is a single string (in case of multiple parameters)
+
     const id = Array.isArray(vehicleId) ? vehicleId[0] : vehicleId;
 
     const [vehicle, setVehicle] = useState<VehicleData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // --- Data Fetching Logic (No changes needed here) ---
     const fetchVehicleDetails = async () => {
         if (!id) {
             setError("No vehicle ID provided.");
@@ -92,7 +85,6 @@ const CarDetailsScreen = () => {
             });
 
             if (!response.ok) {
-                // If the fetch failed, try to parse the error message
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Failed to fetch vehicle ${id}.`);
             }
@@ -111,7 +103,6 @@ const CarDetailsScreen = () => {
         fetchVehicleDetails();
     }, [id]);
 
-    // --- Render States (Loading, Error) ---
 
     if (loading) {
         return (
@@ -141,7 +132,6 @@ const CarDetailsScreen = () => {
         );
     }
 
-    // --- Main Details View ---
     return (
         <View style={styles.container}>
             {/* Header with Back Button */}
@@ -188,8 +178,6 @@ const CarDetailsScreen = () => {
                 {/* Action Button: Edit Details */}
                 <TouchableOpacity 
                     style={styles.editButton} 
-                    // 🛑 FIX: Use router.push to navigate to the edit screen 
-                    // and pass the current vehicle's ID as a parameter.
                     onPress={() => router.push({ 
                         pathname: "/editcardetails/[id]", 
                         params: { id: vehicle.id } 
@@ -205,7 +193,6 @@ const CarDetailsScreen = () => {
     );
 };
 
-// --- HELPER COMPONENT: Detail Row ---
 interface DetailRowProps {
     label: string;
     value: string;
@@ -220,7 +207,6 @@ const DetailRow: React.FC<DetailRowProps> = ({ label, value, fullWidth = false }
 );
 
 
-// --- STYLESHEET (No changes needed here) ---
 const styles = StyleSheet.create({
     container: {
         flex: 1,

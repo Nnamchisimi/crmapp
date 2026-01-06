@@ -16,14 +16,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MotiView } from "moti";
 import { MaterialIcons } from "@expo/vector-icons";
 
-// Define the root navigation type for type safety
+
 type RootStackParamList = {
     signin: undefined;
     dashboard: undefined;
-    signup: undefined; // Include this screen itself
+    signup: undefined; 
 };
 
-const API_BASE_URL =  "http://192.168.55.73:3007"; // Use 10.0.2.2 for Android emulator to access localhost
+const API_BASE_URL =  "http://192.168.55.73:3007"; 
 const PRIMARY_COLOR = "#00bcd4";
 const BACKGROUND_COLOR = "#1a1a1a";
 const CARD_BG = "rgba(255,255,255,0.05)";
@@ -39,17 +39,15 @@ export const SignUpScreen: React.FC = () => {
     const [surname, setSurname] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [password, setPassword] = useState("");
-    const [isGoogleUser, setIsGoogleUser] = useState(false); // To handle pre-filled data from Google
+    const [isGoogleUser, setIsGoogleUser] = useState(false); 
     const [loading, setLoading] = useState(false);
 
-    // Helper function to show alerts
     const showAlert = (title: string, message: string) => {
         Alert.alert(title, message);
     };
 
-    // --------------------------------------
-    // Manual Signup (Backend auto-generates CRM)
-    // --------------------------------------
+    // Manual Signup 
+
     const handleSubmit = async () => {
         if (loading) return;
         setLoading(true);
@@ -100,43 +98,42 @@ export const SignUpScreen: React.FC = () => {
         }
     };
 
-    // --------------------------------------
-    // Google Signup Placeholder
-    // --------------------------------------
+
+    // Google Signup 
+
     const handleGoogleSuccess = async (
         email: string,
         name: string,
         surname: string
     ) => {
-        // In a real app, you would integrate a native Google Sign-in library (e.g., @react-native-google-signin/google-signin)
-        // This function would receive a token/credential, which you'd send to your backend.
+       
         setLoading(true);
 
         try {
-            // Placeholder logic: assuming the backend handles the token exchange
+         
             const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                // Replace with the actual token/credential from the native Google Sign-in flow
+             
                 body: JSON.stringify({ token: "MOCK_GOOGLE_TOKEN" }),
             });
 
             const data = await res.json();
 
             if (res.ok && data.success) {
-                // Pre-fill fields or navigate directly on successful login/registration
+         
                 setEmail(data.email || email);
                 setName(data.name || name);
                 setSurname(data.surname || surname);
                 setUsername(data.username || data.email.split("@")[0] || "");
                 setIsGoogleUser(true);
-                setPassword("GOOGLE_AUTH_PLACEHOLDER"); // Password is not used for Google users
+                setPassword("GOOGLE_AUTH_PLACEHOLDER");
 
                 if (data.crm_number) {
                     await AsyncStorage.setItem("crmNumber", data.crm_number);
                 }
                 
-                // Assuming successful Google sign-up means successful log-in and navigation to Dashboard
+              
                 await AsyncStorage.setItem("userEmail", data.email);
                 navigation.navigate("dashboard");
 
@@ -145,7 +142,7 @@ export const SignUpScreen: React.FC = () => {
                     "Google Sign-up Failed",
                     data.error || data.message || "Please try manual sign-up."
                 );
-                setIsGoogleUser(false); // Reset in case of failure
+                setIsGoogleUser(false); 
             }
         } catch (err) {
             showAlert("Error", "Google sign-up failed. Check server connection.");
@@ -169,7 +166,7 @@ export const SignUpScreen: React.FC = () => {
                 >
                     <Text style={styles.title}>Sign up</Text>
 
-                    {/* ---------------------- FORM ---------------------- */}
+              
                     <View style={styles.form}>
                         {/* Name */}
                         <TextInput
@@ -180,7 +177,7 @@ export const SignUpScreen: React.FC = () => {
                             onChangeText={setName}
                             autoCapitalize="words"
                         />
-                        {/* Surname */}
+               
                         <TextInput
                             style={styles.input}
                             placeholder="Surname"
@@ -189,7 +186,7 @@ export const SignUpScreen: React.FC = () => {
                             onChangeText={setSurname}
                             autoCapitalize="words"
                         />
-                        {/* Phone Number */}
+                    
                         <TextInput
                             style={styles.input}
                             placeholder="Phone Number"
@@ -198,7 +195,7 @@ export const SignUpScreen: React.FC = () => {
                             onChangeText={setPhoneNumber}
                             keyboardType="phone-pad"
                         />
-                        {/* Email */}
+                 
                         <TextInput
                             style={[
                                 styles.input,
@@ -212,7 +209,7 @@ export const SignUpScreen: React.FC = () => {
                             autoCapitalize="none"
                             editable={!isGoogleUser}
                         />
-                        {/* Username */}
+             
                         <TextInput
                             style={[
                                 styles.input,
@@ -225,7 +222,7 @@ export const SignUpScreen: React.FC = () => {
                             autoCapitalize="none"
                             editable={!isGoogleUser}
                         />
-                        {/* Password */}
+                    
                         <TextInput
                             style={[
                                 styles.input,
@@ -240,7 +237,7 @@ export const SignUpScreen: React.FC = () => {
                      
                         />
 
-                        {/* Manual Sign up Button */}
+        
                         {!isGoogleUser && (
                             <TouchableOpacity
                                 style={styles.button}
@@ -261,14 +258,14 @@ export const SignUpScreen: React.FC = () => {
                         )}
                     </View>
 
-                    {/* Divider */}
+        
                     <View style={styles.dividerContainer}>
                         <View style={styles.dividerLine} />
                         <Text style={styles.dividerText}>or</Text>
                         <View style={styles.dividerLine} />
                     </View>
 
-                    {/* Google Sign In Button (Placeholder) */}
+                 
                     <View style={styles.googleButtonContainer}>
                         <TouchableOpacity
                             style={styles.googleButton}
@@ -278,7 +275,7 @@ export const SignUpScreen: React.FC = () => {
                                     "John",
                                     "Doe"
                                 )
-                            } // Mocked data
+                            } 
                             disabled={loading}
                         >
                             <MaterialIcons
@@ -293,7 +290,7 @@ export const SignUpScreen: React.FC = () => {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Go to Sign in */}
+           
                     <Text style={styles.footerText}>
                         Already have an account?{" "}
                         <Text
@@ -320,7 +317,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: 40,
         paddingHorizontal: 20,
-        // Gradient simulation (React Native doesn't support linear-gradient background directly without a library like expo-linear-gradient)
+      
         backgroundColor: BACKGROUND_COLOR,
     },
     card: {
@@ -329,7 +326,7 @@ const styles = StyleSheet.create({
         padding: 25,
         borderRadius: 15,
         backgroundColor: CARD_BG,
-        // Simulating Paper elevation with shadow
+   
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
@@ -341,7 +338,7 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         textAlign: "center",
         marginBottom: 30,
-        // Simulating the linear-gradient text effect using color for React Native
+
         color: PRIMARY_COLOR,
     },
     form: {
@@ -397,7 +394,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#4285F4', // Google Blue
+        backgroundColor: '#4285F4',
         paddingVertical: 15,
         paddingHorizontal: 20,
         borderRadius: 8,

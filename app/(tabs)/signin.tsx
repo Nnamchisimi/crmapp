@@ -43,7 +43,7 @@ interface SignInResponse {
 
 export default function SignIn() {
 
-  // State
+
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -111,7 +111,7 @@ export default function SignIn() {
     }
   };
 
-  // Google Login → Backend
+  
 
   const handleGoogleLogin = async (idToken: string) => {
     try {
@@ -141,7 +141,7 @@ export default function SignIn() {
   };
 
 
-  // UI
+ 
 
   return (
     <KeyboardAvoidingView

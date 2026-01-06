@@ -14,7 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker'; 
 
-// --- CONSTANTS & CONFIGURATION ---
+
 
 const BASE_URL = "http://192.168.55.58:3007"; 
 const PRIMARY_COLOR = '#00bcd4';
@@ -25,9 +25,7 @@ const SUBTLE_TEXT_COLOR = 'rgba(255,255,255,0.7)';
 const INPUT_BORDER = '#333';
 const ERROR_COLOR = 'red';
 
-// --- TYPE DEFINITIONS & DATA ---
 
-// This type definition explicitly allows indexing by any string, solving the TypeScript error (Code 7053)
 interface CarModelsMap {
     [key: string]: string[]; 
 }
@@ -65,9 +63,9 @@ interface FormDataState {
     kilometers: string;
 }
 
-// Data definitions from the web component, cast to the indexable type
+
 const carModels: CarModelsMap = {
-    // ... (All your car models here)
+
     "Chrysler": ["300 C", "300 M", "Concorde", "Crossfire", "LHS", "Neon", "PT Cruiser", "Sebring", "Stratus"],
     "Audi": [ "100", "80", "A1", "A2", "A3", "A3 Cabriolet", "A4", "A4 Allroad", "A4 Avant", "A4 Cabriolet", "A5", "A5 Avant", "A5 Cabriolet", "A6 Allroad", "A6 Avant", "A6 e-tron Avant", "A6 Saloon", "A6 Unspecified", "A7", "A8", "Allroad", "Cabriolet", "Coupe", "e-tron", "e-tron GT", "e-tron S", "Q2", "Q3", "Q4 e-tron", "Q5", "Q6 e-tron", "Q7", "Q8", "Q8 e-tron", "quattro", "R8", "RS3", "RS4", "RS4 Avant", "RS4 Cabriolet", "RS5", "RS6", "RS6 Avant", "RS7", "RS e-tron GT", "RS Q3", "RSQ8", "S1", "S3", "S4", "S4 Avant", "S4 Cabriolet", "S5", "S5 Avant", "S6 Avant", "S6 e-tron Avant", "S6 Saloon", "S7", "S8", "S e-tron GT", "SQ2", "SQ5", "SQ6 e-tron", "SQ7", "SQ8", "SQ8 e-tron", "TT", "TT RS", "TTS"],
     "Alfa Romeo": ["156 Sportwagon", "159", "159 Sportwagon", "164", "166", "2000", "4C", "Alfasud", "Brera", "Giulia", "Giulietta", "GT", "GTV", "Junior", "MiTo", "Spider", "Stelvio", "Tonale"],
@@ -102,7 +100,7 @@ const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 26 }, (_, i) => String(currentYear - i)).reverse(); 
 
 
-// --- HELPER COMPONENT: Custom Picker (Dropdown) ---
+
 
 interface CustomPickerProps {
     label: string;
@@ -142,7 +140,7 @@ const CustomPicker: React.FC<CustomPickerProps> = ({
 };
 
 
-// --- MAIN EDIT COMPONENT ---
+
 
 const EditCarDetailsScreen = () => {
     const router = useRouter(); 
@@ -156,17 +154,17 @@ const EditCarDetailsScreen = () => {
     const [formData, setFormData] = useState<Partial<FormDataState>>({});
     const [errors, setErrors] = useState<Partial<FormDataState>>({});
 
-    // Dynamic calculation based ONLY on formData
+
     const getAvailableModels = useCallback((brand: string | undefined): string[] => {
         if (!brand) return [];
-        // The carModels map is now safely indexable by string
+      
         return carModels[brand] || []; 
     }, []);
 
     const availableModels = getAvailableModels(formData.brand);
 
 
-    // 1. Fetch Vehicle Details (to populate the form)
+
     const fetchVehicleDetails = useCallback(async () => {
         if (!vehicleId) {
             Alert.alert("Error", "No vehicle ID provided.");
@@ -194,7 +192,7 @@ const EditCarDetailsScreen = () => {
             const data: VehicleData = await response.json();
             setCurrentVehicle(data);
             
-            // Populate form data using API response keys
+     
             setFormData({
                 name: data.name || '',
                 surname: data.surname || '',
@@ -221,16 +219,16 @@ const EditCarDetailsScreen = () => {
     }, [fetchVehicleDetails]);
 
 
-    // 2. Form Handling
+  
     const handleChange = (name: keyof FormDataState, value: string) => {
         
-        // If brand changes, reset the model field
+       
         if (name === "brand") {
             setFormData(prev => ({ ...prev, brand: value, model: "" }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
-        setErrors(prev => ({ ...prev, [name]: undefined })); // Clear error on change
+        setErrors(prev => ({ ...prev, [name]: undefined }));
     };
 
     const validate = (): boolean => {
@@ -251,7 +249,7 @@ const EditCarDetailsScreen = () => {
     };
 
 
-    // 3. API Submission
+ 
     const handleSubmit = async () => {
         if (!validate() || isSubmitting || !vehicleId) return;
         
@@ -285,7 +283,7 @@ const EditCarDetailsScreen = () => {
         }
     };
     
-    //  Render States
+    
     if (loading) {
         return (
             <View style={[styles.container, styles.center]}>
@@ -306,7 +304,7 @@ const EditCarDetailsScreen = () => {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
+       
             <View style={styles.header}>
                  <TouchableOpacity onPress={() => router.back()} style={styles.backButton} disabled={isSubmitting}>
                     <MaterialIcons name="arrow-back" size={24} color={TEXT_COLOR} />
@@ -319,7 +317,7 @@ const EditCarDetailsScreen = () => {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 
-                {/* Customer Details */}
+          
                 <Text style={styles.sectionTitle}>Customer Info</Text>
                 <TextInput
                     style={styles.input} placeholder="Name" placeholderTextColor={SUBTLE_TEXT_COLOR}
@@ -335,7 +333,7 @@ const EditCarDetailsScreen = () => {
                     keyboardType="phone-pad"
                 />
                 
-                {/* Vehicle Details */}
+             
                 <Text style={styles.sectionTitle}>Vehicle Info</Text>
                 <TextInput
                     style={styles.input} placeholder="VIN Number" placeholderTextColor={SUBTLE_TEXT_COLOR}
@@ -346,7 +344,7 @@ const EditCarDetailsScreen = () => {
                     value={formData.license_plate} onChangeText={(v) => handleChange('license_plate', v)}
                 />
                 
-                {/* Dropdowns */}
+             
                 <CustomPicker 
                     label="Brand" 
                     name="brand"
@@ -359,7 +357,7 @@ const EditCarDetailsScreen = () => {
                     name="model"
                     selectedValue={formData.model || ''} 
                     onValueChange={(v) => handleChange('model', v)}
-                    items={availableModels} // Uses dynamically calculated models based on formData.brand
+                    items={availableModels}
                     disabled={!formData.brand || availableModels.length === 0}
                 />
                 <CustomPicker 
@@ -377,7 +375,7 @@ const EditCarDetailsScreen = () => {
                     items={fuelTypes}
                 />
                 
-                {/* Year and Kilometers */}
+        
                 <View style={styles.row}>
                     <View style={styles.halfWidth}>
                         <CustomPicker 
@@ -402,7 +400,7 @@ const EditCarDetailsScreen = () => {
                     </View>
                 </View>
 
-                {/* Action Buttons */}
+         
                 <View style={styles.actions}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton} disabled={isSubmitting}>
                         <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -422,7 +420,7 @@ const EditCarDetailsScreen = () => {
     );
 };
 
-// --- STYLESHEET ---
+
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: BACKGROUND_COLOR, },
     center: { justifyContent: 'center', alignItems: 'center', },
