@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {router} from "expo-router"
+import { useAuth } from '@/app/context/AuthContext';
+
+
 import {
   View,
   Text,
@@ -30,21 +33,19 @@ interface Vehicle {
   crm_number: string;
 }
 
-/**
-structure of a Campaign object returned from the API.
- */
+
+ 
 interface Campaign {
   id: string;
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | string;
   discount: string;
-  validUntil: string; // Date string
-  bookedByUser: boolean; // Added locally after fetching
+  validUntil: string; 
+  bookedByUser: boolean; 
 }
 
 
-// --- CONSTANTS & PLACEHOLDERS ---
 
 const PRIMARY_COLOR = '#00bcd4';
 const BACKGROUND_COLOR = '#000';
@@ -53,12 +54,11 @@ const BORDER_COLOR = 'rgba(255,255,255,0.1)';
 const TEXT_COLOR = 'white';
 const SUBTLE_TEXT_COLOR = 'rgba(255,255,255,0.7)';
 const { width: screenWidth } = Dimensions.get('window');
-const DRAWER_WIDTH = screenWidth * 0.7; 
+const DRAWER_WIDTH = screenWidth * 0.75; 
 
 
-const BASE_URL = "http://192.168.55.73:3007"; // or tunnel URL
+const BASE_URL = "http://192.168.55.73:3007"; 
 
-// Placeholder component for BrandLogo
 const BrandLogo: React.FC<{ brand: string, size: 'lg' | 'sm', showName: boolean }> = ({ brand, size }) => (
   <View style={styles.brandLogoContainer}>
     <Ionicons name="car-sport" size={size === 'lg' ? 30 : 20} color={PRIMARY_COLOR} />
@@ -66,7 +66,6 @@ const BrandLogo: React.FC<{ brand: string, size: 'lg' | 'sm', showName: boolean 
   </View>
 );
 
-// Custom "Chip" equivalent for RN
 const CustomChip: React.FC<{ label: string, color: string }> = ({ label, color }) => (
   <View style={[styles.chip, { backgroundColor: color }]}>
     <Text style={styles.chipText}>{label}</Text>
@@ -74,10 +73,8 @@ const CustomChip: React.FC<{ label: string, color: string }> = ({ label, color }
 );
 
 
-// --- DASHBOARD COMPONENT ---
 const Dashboard: React.FC = () => {
   
-  // Helper to convert web paths to RN navigation calls
   const navigate = useCallback((path: string) => {
     if (path === '/signin') return router.replace('/signin');
     if (path === '/addVehicle') return router.push('/addVehicle');
@@ -105,13 +102,11 @@ const Dashboard: React.FC = () => {
   const [activeCampaigns, setActiveCampaigns] = useState<Campaign[]>([]);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>([]);
   
-  const [userToken, setUserToken] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
+
+ const { token, userEmail, userName, signOut } = useAuth();
 
   const drawerAnim = useRef(new Animated.Value(screenWidth)).current;
 
-  // --- DRAWER LOGIC ---
   const openDrawer = () => {
     setMobileOpen(true);
     Animated.timing(drawerAnim, {
@@ -130,29 +125,7 @@ const Dashboard: React.FC = () => {
   };
 
 
-  // Load user data on mount
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        const email = await AsyncStorage.getItem('userEmail');
-        const name = await AsyncStorage.getItem('userName');
-        setUserToken(token);
-        setUserEmail(email);
-        setUserName(name);
 
-        if (!token) {
-          console.error("User not authenticated, redirecting.");
-          navigate("/signin");
-        }
-      } catch (e) {
-        console.error("Failed to load user data:", e);
-      }
-    };
-    loadUserData();
-  }, [navigate]);
-
-  // Calculate upcoming bookings
   const getClosestDateCount = useCallback((): number => {
     if (!activeCampaigns.length) return 0;
 
@@ -178,12 +151,12 @@ const Dashboard: React.FC = () => {
   // Fetch vehicles (SECURED)
   useEffect(() => {
     const fetchVehicles = async () => {
-      if (!userToken) return;
+      if (!token) return;
 
       try {
         const res = await fetch(`${BASE_URL}/api/vehicles`, {
           headers: {
-            "Authorization": `Bearer ${userToken}`,
+            "Authorization": `Bearer ${token}`,
           },
         });
 
@@ -195,7 +168,6 @@ const Dashboard: React.FC = () => {
         }
 
         const data: any = await res.json();
-        // Handle API response variations
         const fetchedVehicles: Vehicle[] = (Array.isArray(data) ? data : data.vehicles) || []; 
         setVehicles(fetchedVehicles);
 
@@ -205,17 +177,16 @@ const Dashboard: React.FC = () => {
       }
     };
     fetchVehicles();
-  }, [userToken, navigate]);
+  }, [token, navigate]);
 
-  // Fetch campaigns (SECURED)
   useEffect(() => {
     const fetchCampaigns = async () => {
-      if (!userEmail || !userToken) return;
+      if (!userEmail || !token) return;
 
       try {
         const res = await fetch(`${BASE_URL}/api/campaigns?email=${userEmail}`, {
           headers: {
-            "Authorization": `Bearer ${userToken}`,
+            "Authorization": `Bearer ${token}`,
           },
         });
 
@@ -234,7 +205,7 @@ const Dashboard: React.FC = () => {
       }
     };
     fetchCampaigns();
-  }, [userEmail, userToken]);
+  }, [userEmail, token]);
 
   const getPriorityColor = (priority: string): string => {
     switch (priority) {
@@ -269,7 +240,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Sidebar items
   const sidebarItems = [
     { text: "Home", icon: "home", path: "/" },
     { text: "Dashboard", icon: "dashboard", path: "/dashboard" },
@@ -285,7 +255,6 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
   </View>
 );
 
-  // Drawer Content
   const DrawerContent = (
     <View style={styles.drawerContainer}>
       <Text style={styles.drawerTitle}>AutoCRM</Text>
@@ -399,7 +368,6 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
           </View>
         </View>
 
-        {/* Recent Bookings Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Recent Bookings</Text>
           <View style={styles.campaignsList}>
@@ -418,7 +386,6 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
                 <Text style={styles.subtleText}>Valid until: {c.validUntil}</Text>
                 <TouchableOpacity 
                     style={styles.cancelButton}
-                    // Prevent propagation to the parent TouchableOpacity (the card)
                     onPress={(e) => { e.stopPropagation(); cancelCampaign(c); }} 
                 >
                     <Text style={styles.cancelButtonText}>Cancel Booking</Text>
@@ -432,18 +399,16 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
       </ScrollView>
       </SafeAreaView>
 
-      {/* Custom Animated Drawer */}
       {mobileOpen && (
         <Animated.View style={[styles.mobileDrawer, { transform: [{ translateX: drawerAnim }] }]}>
           {DrawerContent}
-          {/* Close button outside the content for better UX */}
           <TouchableOpacity style={styles.drawerCloseButton} onPress={closeDrawer}>
             <MaterialIcons name="close" size={30} color={TEXT_COLOR} />
           </TouchableOpacity>
         </Animated.View>
       )}
       
-      {/* Drawer Overlay */}
+ 
       {mobileOpen && (
         <TouchableOpacity 
           style={styles.drawerOverlay} 
@@ -454,7 +419,7 @@ const CustomChip: React.FC<{ label: string, color: string, style?: any }> = ({ l
   );
 };
 
-// --- STYLESHEET ---
+
 const styles = StyleSheet.create({
   appContainer: {
     flex: 1,
@@ -493,7 +458,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Stats
+  
   statsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -523,7 +488,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
-  // Sections
   sectionContainer: {
     marginTop: 20,
     marginBottom: 20,
@@ -535,7 +499,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  // Add Button
+
   addButton: {
     flexDirection: 'row',
     backgroundColor: PRIMARY_COLOR,
@@ -552,7 +516,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  // Vehicles
   vehicleList: {
     flexDirection: 'column', 
   },
@@ -602,7 +565,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Campaigns/Bookings
+
   campaignsList: {
     flexDirection: 'column',
   },
@@ -648,7 +611,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Chip
+
   chip: {
     borderRadius: 15,
     paddingVertical: 5,
@@ -663,7 +626,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Common styles
+
   divider: {
     height: 1,
     backgroundColor: BORDER_COLOR,
@@ -675,7 +638,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
 
-  // Drawer Styles
   drawerOverlay: {
     position: 'absolute',
     top: 0,
