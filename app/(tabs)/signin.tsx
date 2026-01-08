@@ -13,15 +13,19 @@ import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import * as WebBrowser from "expo-web-browser";
+import { useAuth } from "@/app/context/AuthContext";
+
 import * as Google from "expo-auth-session/providers/google";
 import Constants from "expo-constants";
 
 WebBrowser.maybeCompleteAuthSession();
 
 
-// Config
 
-const BASE_URL = "http://192.168.55.73:3007"; // or tunnel URL
+
+const BASE_URL = "http://192.168.55.73:3007";  
+
+
 
 
 const GOOGLE_WEB_CLIENT_ID =
@@ -44,7 +48,7 @@ interface SignInResponse {
 export default function SignIn() {
 
 
-
+const { setAuthData } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -95,13 +99,21 @@ export default function SignIn() {
         return;
       }
 
-      await AsyncStorage.multiSet([
-        ["token", data.token],
-        ["userEmail", data.email ?? ""],
-        ["role", data.role ?? ""],
-        ["userName", data.name ?? ""],
-        ["userSurname", data.surname ?? ""],
-      ]);
+          await AsyncStorage.multiSet([
+          ["token", data.token],
+          ["userEmail", data.email ?? ""],
+          ["userName", data.name ?? ""],
+        ]);
+
+      
+        setAuthData(
+          data.token,
+          data.email ?? null,
+          data.name ?? null
+        );
+
+
+
 
       router.replace(data.role === "admin" ? "/admin" : "/dashboard");
     } catch (err) {
