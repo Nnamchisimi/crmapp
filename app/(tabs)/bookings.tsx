@@ -27,7 +27,7 @@ const DISABLED_COLOR = "rgba(0,188,212,0.3)";
 const ERROR_COLOR = '#ff4d4f'; 
 const BORDER_COLOR = 'rgba(255,255,255,0.1)';
 const { width: screenWidth } = Dimensions.get('window');
-const DRAWER_WIDTH = screenWidth * 0.7; 
+const DRAWER_WIDTH = screenWidth * 0.75; 
 
 interface Vehicle {
     id: number;
